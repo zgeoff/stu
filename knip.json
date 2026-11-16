@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  // the shared oxlint config loads the plugin, so knip never sees it
+  "ignoreDependencies": ["@stylistic/eslint-plugin"],
+  // the test script names its roots, so knip reads no package's tests from it
+  "workspaces": {
+    ".": { "entry": ["rig.config.ts"] },
+    "{apps,modules,adapters,libs}/*": {
+      "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts", "bench/*.bench.ts"]
+    }
+  }
+}
