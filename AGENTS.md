@@ -17,7 +17,7 @@ The mistakes that cost most here:
 - [Before you start](#before-you-start): load the skills your work needs.
 - [Layout](#layout): code under `modules/` and `libs/` does no I/O.
 - [Packages](#packages): one exact version per dependency, in the root catalog.
-- [Checks](#checks): run the local checks before you push. The type-aware lint runs in CI only.
+- [Checks](#checks): run the local checks before you push. Never run the type-aware lint locally.
 - [Commits and pull requests](#commits-and-pull-requests): Conventional Commits, one PR per change,
   no attribution lines.
 - [Public repo](#public-repo): nothing from your machine or anyone's private setup.
@@ -56,7 +56,7 @@ The workspace has four kinds of package. Each package's folder name is its packa
 - `libs/`: types, schemas and pure helpers that two or more packages use. A lib does no I/O, the
   same as a module.
 
-Three checks enforce the layout in CI:
+Three checks enforce the layout:
 
 - `turbo boundaries` fails on an import that the package's tag doesn't allow. Each package's
   `turbo.json` sets its tag, `app`, `module`, `adapter` or `lib`, and the root `turbo.json` lists
@@ -66,7 +66,8 @@ Three checks enforce the layout in CI:
 - oxlint's `no-restricted-globals` rule fails on any use of `Date`, `process` or `Bun` in `modules/`
   and `libs/`.
 
-When a check fails, move the code to the package the layout names. Never add an exception to a rule.
+When a check fails, move the code to the kind of package that the layout allows. Never add an
+exception to a rule.
 
 ## Packages
 
@@ -86,8 +87,8 @@ When a check fails, move the code to the package the layout names. Never add an 
 - `bun run typecheck`, `bun run lint` and `bun run test` are the local checks. Run them before you
   push, and fix every failure. `bun run test` runs `rig unit`, which runs the tests in random order.
 - `bun run check:docs` runs the docs checks.
-- `bun run lint:full` adds the type-aware pass and the type check. It runs in CI only, so never run
-  it locally.
+- `bun run lint:full` adds the type-aware pass and the type check. Never run it locally, because
+  it needs more memory than an agent's host has.
 - lefthook runs the light checks before a commit and a push: lint on the files your branch changes,
   the format check, the type check, the tests beside the changed files, and `turbo boundaries`. To
   run the pre-push jobs before you push:
@@ -96,8 +97,10 @@ When a check fails, move the code to the package the layout names. Never add an 
   bun x lefthook run pre-push
   ```
 
-- Leave the larger checks to CI, because the host may have little memory. CI runs the audit, the
-  knip dead-code check, the type-aware lint and the full test suite on every pull request.
+- Leave the larger checks to CI, because the host may have little memory. On every pull request,
+  the `pr / checks` job runs the package scripts that the `BUN_CHECK_SCRIPTS` repo variable lists.
+  When the variable is unset, the job runs `audit`, `deadcode`, `format:check`, `lint`, `typecheck`
+  and `test`.
 
 ## Commits and pull requests
 
@@ -126,5 +129,5 @@ Everything pushed here is public, including commit messages and PR descriptions.
   Remove each match. Search your PR description for the same strings before you open the PR. When a
   match is already in a commit on your branch, rewrite that commit before you push.
 
-**Reply:** the pull request link and its CI state; or, when unmerged work blocked you, that pull
-request or issue.
+Reply with the pull request link and its CI state. When unmerged work blocked you, reply with that
+pull request or issue.
