@@ -7,7 +7,6 @@
     ".lefthook/pre-push-baseline.yml",
     "socket.yml",
     ".claude/skill-gate.json",
-    ".claude/skills/pr-evidence/**",
     "scripts/collect-command-names.ts",
     "scripts/collect-concurrency-findings.ts",
     "scripts/collect-expression-references.ts",
@@ -40,6 +39,14 @@
     "scripts/run-workflows-check.ts",
     "scripts/shell-escape-parsers.ts",
     "scripts/workflow-context.ts",
-    "scripts/dependency-gates/**"
+    "scripts/dependency-gates/**",
+    ".agents/skills/ci-design/**",
+    ".agents/skills/code-style/**",
+    ".agents/skills/cold-read/**",
+    ".agents/skills/deslop/**",
+    ".agents/skills/docs-writing/**",
+    ".agents/skills/pr-evidence/**",
+    ".agents/skills/skill-writing/**",
+    ".agents/skills/testing/**"
   ]
 }
