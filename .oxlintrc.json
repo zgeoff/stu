@@ -21,7 +21,18 @@
         "modules": [
           {
             "name": "domain-io",
-            "modules": ["node:fs", "node:child_process", "node:net", "node:http", "node:https"],
+            "modules": [
+              "node:fs",
+              "node:child_process",
+              "node:net",
+              "node:http",
+              "node:https",
+              "node:http2",
+              "node:tls",
+              "node:dgram",
+              "node:worker_threads",
+              "bun:sqlite"
+            ],
             "from": ["domain"],
             "allow": [],
             "reason": "a module or a lib does no I/O; take an adapter through a port"
