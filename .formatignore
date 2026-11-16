@@ -1,0 +1,9 @@
+# lefthook.yml repeats these globs in the format-codemod exclude; change both
+# the format scripts in package.json read this file to skip format-codemod when no file is left
+
+# build output
+**/dist/**
+**/coverage/**
+
+# nested checkouts
+.worktrees/**

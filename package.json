@@ -1,0 +1,90 @@
+{
+  "name": "stu",
+  "private": true,
+  "description": "What stu needs to run the owner's conversation",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zgeoff/stu.git"
+  },
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "modules/*",
+      "adapters/*",
+      "libs/*"
+    ],
+    "catalog": {
+      "@commitlint/cli": "21.2.4",
+      "@maschwenk/tsrslint": "0.1.6",
+      "@stylistic/eslint-plugin": "5.10.0",
+      "@tsconfig/strictest": "2.0.8",
+      "@types/bun": "1.4.4",
+      "@zgeoff/bun-test-extended": "0.2.3",
+      "@zgeoff/chex": "0.3.4",
+      "@zgeoff/commitlint-config": "0.1.0",
+      "@zgeoff/format-codemod": "0.3.5",
+      "@zgeoff/oxfmt-config": "0.1.0",
+      "@zgeoff/oxlint-config": "0.10.7",
+      "@zgeoff/rig": "0.2.4",
+      "knip": "6.44.2",
+      "lefthook": "2.2.2",
+      "oxfmt": "0.77.0",
+      "oxlint": "1.92.0",
+      "tsrs": "0.18.0-ts7.1.0-dev.20260929",
+      "turbo": "2.11.10",
+      "typescript": "7.0.2"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "audit": "bun audit --ignore=GHSA-g3hv-75wg-m249",
+    "boundaries": "turbo boundaries",
+    "deadcode": "bash scripts/run-knip.sh",
+    "format": "oxfmt . && { [ -z \"$(git ls-files -co --exclude-standard -- '*.ts' '*.tsx' $(sed -e '/^#/d' -e '/^$/d' -e 's/^/:(exclude,glob)/' .formatignore))\" ] || format-codemod --quiet .; }",
+    "format:check": "oxfmt --check . && { [ -z \"$(git ls-files -co --exclude-standard -- '*.ts' '*.tsx' $(sed -e '/^#/d' -e '/^$/d' -e 's/^/:(exclude,glob)/' .formatignore))\" ] || format-codemod --check --quiet .; }",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "lint:full": "tsgolint=$(tsrslint-path) && OXLINT_TSGOLINT_PATH=$tsgolint oxlint --type-aware --type-check --report-unused-disable-directives-severity error",
+    "prepare": "command -v git > /dev/null 2>&1 && lefthook install --force || true",
+    "prose": "chex prose AGENTS.md",
+    "test": "rig unit",
+    "typecheck": "tsrs --noEmit && turbo run typecheck",
+    "files:branch": "bun scripts/read-branch-files.ts",
+    "lint:files": "oxlint --no-error-on-unmatched-pattern",
+    "test:related": "rig related",
+    "check:commits": "bun scripts/run-commits-check.ts",
+    "check:local-paths": "bun scripts/run-local-paths-check.ts",
+    "check:docs": "chex prose length links readmes skill",
+    "check:test-layout": "chex test-layout",
+    "check:test-timeouts": "bun scripts/run-test-timeouts-check.ts",
+    "check:dependency-gates": "bun scripts/dependency-gates/run-dependency-gates-check.ts",
+    "check:workflows": "bun scripts/run-workflows-check.ts",
+    "check:uncommitted": "bun scripts/run-uncommitted-check.ts",
+    "memory-capped": "bash scripts/run-memory-capped.sh \"$(bun scripts/read-memory-budget.ts)\""
+  },
+  "devDependencies": {
+    "@commitlint/cli": "catalog:",
+    "@maschwenk/tsrslint": "catalog:",
+    "@stylistic/eslint-plugin": "catalog:",
+    "@tsconfig/strictest": "catalog:",
+    "@types/bun": "catalog:",
+    "@zgeoff/bun-test-extended": "catalog:",
+    "@zgeoff/chex": "catalog:",
+    "@zgeoff/commitlint-config": "catalog:",
+    "@zgeoff/format-codemod": "catalog:",
+    "@zgeoff/oxfmt-config": "catalog:",
+    "@zgeoff/oxlint-config": "catalog:",
+    "@zgeoff/rig": "catalog:",
+    "knip": "catalog:",
+    "lefthook": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "tsrs": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "bun@1.4.4"
+}

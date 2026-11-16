@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  // the shared oxlint config loads the plugin, so knip never sees it
+  "ignoreDependencies": ["@stylistic/eslint-plugin"],
+  // rig reads its config from the repo root, and nothing imports it
+  "entry": ["rig.config.ts"]
+}
