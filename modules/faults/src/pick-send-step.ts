@@ -1,7 +1,6 @@
 import type { Reported, SendOutcome } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
-import { buildNextSendKey } from './build-send-key.ts';
 import { moveFault } from './move-fault.ts';
 
 // What a key's owed send came to, and the file that follows. failed keeps the send key; resend and
@@ -23,8 +22,6 @@ export function pickSendStep(
 
   invariant(fault !== undefined && fault.sendKey !== null, `fault ${key} owes no send`);
 
-  const sendKey = fault.sendKey;
-
   return match(outcome)
     .returnType<SendStep>()
     .with({ kind: 'sent' }, () => ({
@@ -33,10 +30,7 @@ export function pickSendStep(
     }))
     .with({ kind: 'failed' }, (failed) => ({ kind: 'failed', reason: failed.reason }))
     .with({ kind: 'rekey' }, (rekey) => {
-      const state = {
-        ...reported,
-        faults: { ...reported.faults, [key]: { ...fault, sendKey: buildNextSendKey(sendKey) } },
-      };
+      const state = moveFault(reported, key, { to: 'rekeyed' });
 
       return triesLeft > 1
         ? { kind: 'resend', state }

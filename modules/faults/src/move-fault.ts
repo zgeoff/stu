@@ -1,7 +1,7 @@
 import type { Reported, ReportedFault } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
-import { buildSendKey } from './build-send-key.ts';
+import { buildNextSendKey, buildSendKey } from './build-send-key.ts';
 
 export type FaultMove =
   | {
@@ -12,7 +12,10 @@ export type FaultMove =
     }
   | { readonly to: 'open' }
   | { readonly to: 'clearing' }
-  | { readonly to: 'gone' };
+  | { readonly to: 'gone' }
+
+  // the owed send stays owed under the next send key, because atc will never run the current one
+  | { readonly to: 'rekeyed' };
 
 export function moveFault(reported: Reported, key: string, move: FaultMove): Reported {
   const held = reported.faults[key];
@@ -59,6 +62,19 @@ export function moveFault(reported: Reported, key: string, move: FaultMove): Rep
       };
     })
     .with({ to: 'gone' }, () => ({ ...reported, faults: others }))
+    .with({ to: 'rekeyed' }, () => {
+      const fault = requireHeld(held);
+
+      invariant(fault.sendKey !== null, `fault ${key} owes no send to rekey`);
+
+      return {
+        ...reported,
+        faults: {
+          ...reported.faults,
+          [key]: { ...fault, sendKey: buildNextSendKey(fault.sendKey) },
+        },
+      };
+    })
     .exhaustive();
 }
 
@@ -78,14 +94,14 @@ export function getFaultPhase(fault: ReportedFault | undefined): FaultPhase {
     .exhaustive();
 }
 
-const FAULT_MOVES: Readonly<Record<FaultPhase, readonly FaultPhase[]>> = {
+const FAULT_MOVES: Readonly<Record<FaultPhase, readonly FaultMove['to'][]>> = {
   gone: ['opening'],
-  opening: ['open'],
+  opening: ['open', 'rekeyed'],
   open: ['clearing'],
-  clearing: ['gone'],
+  clearing: ['gone', 'rekeyed'],
 };
 
-function canMoveFault(from: FaultPhase, to: FaultPhase): boolean {
+function canMoveFault(from: FaultPhase, to: FaultMove['to']): boolean {
   return FAULT_MOVES[from].includes(to);
 }
 
