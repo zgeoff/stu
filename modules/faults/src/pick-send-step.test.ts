@@ -17,10 +17,10 @@ function setupTest() {
   return {
     key,
 
-    // the file with the fault owing its open, reached through moveFault
+    // the file with the fault owing its open
     opening,
 
-    // the file with the fault owing its recovery, reached through moveFault
+    // the file with the fault owing its recovery
     clearing: moveFault(moveFault(opening, key, { to: 'open' }), key, { to: 'clearing' }),
     sendKeyOf: (reported: Reported) => reported.faults[key]?.sendKey,
   };

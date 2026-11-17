@@ -100,8 +100,8 @@ function collectOwedKeys(reported: Reported): string[] {
 
 const MAX_TRIES = 2;
 
-// Sends what the key owes under its stored key, then saves what pickSendStep decides. A new send
-// key is saved before the send that uses it, so a lost reply to that send replays on the next run.
+// Sends what the key owes under its stored key, then saves the file the send's outcome leads to. A
+// new send key is saved before the send that uses it, so a lost reply to it replays on the next run.
 async function writeOwedMessage(
   run: WatchRun,
   ledger: Ledger,

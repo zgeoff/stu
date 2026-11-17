@@ -25,7 +25,7 @@ function setupTest() {
     key,
     moves,
 
-    // The file with the fault in the phase, reached through moveFault from an empty file.
+    // The file with the fault in the phase, reached by moving it from an empty file.
     reach: (phase: FaultPhase): Reported => {
       const steps = phase === 'gone' ? [] : path.slice(0, path.indexOf(phase) + 1);
 
