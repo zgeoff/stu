@@ -1,5 +1,8 @@
 {
   "extends": "github:zgeoff/noslop-config",
+  "github": {
+    "app": "noslop-review"
+  },
   "synced": [
     ".editorconfig",
     ".github/workflows/audit-fix.yml",
