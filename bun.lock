@@ -26,6 +26,13 @@
         "typescript": "catalog:",
       },
     },
+    "adapters/host-linux": {
+      "name": "@stu/host-linux",
+      "dependencies": {
+        "@stu/model": "workspace:*",
+        "zod": "catalog:",
+      },
+    },
     "adapters/notifier-atc": {
       "name": "@stu/notifier-atc",
       "dependencies": {
@@ -45,6 +52,17 @@
         "@stu/model": "workspace:*",
         "ts-pattern": "catalog:",
         "zod": "catalog:",
+      },
+    },
+    "adapters/sessions-atc": {
+      "name": "@stu/sessions-atc",
+      "dependencies": {
+        "@atcx/contract": "catalog:",
+        "@stu/model": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@zgeoff/testing": "catalog:",
       },
     },
     "adapters/state-file": {
@@ -379,11 +397,15 @@
 
     "@stu/faults": ["@stu/faults@workspace:modules/faults"],
 
+    "@stu/host-linux": ["@stu/host-linux@workspace:adapters/host-linux"],
+
     "@stu/model": ["@stu/model@workspace:libs/model"],
 
     "@stu/notifier-atc": ["@stu/notifier-atc@workspace:adapters/notifier-atc"],
 
     "@stu/probe-net": ["@stu/probe-net@workspace:adapters/probe-net"],
+
+    "@stu/sessions-atc": ["@stu/sessions-atc@workspace:adapters/sessions-atc"],
 
     "@stu/state-file": ["@stu/state-file@workspace:adapters/state-file"],
 
