@@ -76,12 +76,13 @@ retention, such as after the PC slept, reaches stu twice.
 
 ## How the notifier reaches atc
 
-The notifier calls atc on the daemon's client socket, `atc-daemon.sock`. The `atc.sock` beside it is
-the socket that session hooks report on, and it answers no client call. The daemon puts its sockets
-in `$XDG_RUNTIME_DIR` as the daemon's own environment sets it, or in its state folder,
-`~/.local/state/atc`, when that variable is unset. A systemd user unit can see another value than
-the daemon did, so the notifier tries the socket under its own `$XDG_RUNTIME_DIR` first, then the
-socket that the daemon wrote to `daemon.json` in its state folder. atc's own clients do the same.
+The notifier calls atc on the atc daemon's client socket, `atc-daemon.sock`. atc also opens
+`atc.sock` in the same folder. Session hooks report on `atc.sock`, and it answers no client call.
+The daemon puts both sockets in `$XDG_RUNTIME_DIR` as its own environment sets it, or in
+`~/.local/state/atc` when that variable is unset. A systemd user unit can get a different
+`$XDG_RUNTIME_DIR` from the daemon's. So the notifier first tries `atc-daemon.sock` under its own
+`$XDG_RUNTIME_DIR`, then the socket path that the daemon records in
+`~/.local/state/atc/daemon.json`.
 
 ## How atc labels the sender
 
