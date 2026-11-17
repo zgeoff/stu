@@ -29,7 +29,11 @@ async function setupTest() {
     },
     createNotifier: (socketPath: string, session: string) =>
       createAtcNotifier({
-        client: createAtcSocketClient({ socketPath, client: 'stu-watch/0.1.0', timeoutMs: 1000 }),
+        client: createAtcSocketClient({
+          socketPaths: [socketPath],
+          client: 'stu-watch/0.1.0',
+          timeoutMs: 1000,
+        }),
         session,
         from: 'stu-watch',
       }),
@@ -145,14 +149,19 @@ test('it answers rekey for idempotency_conflict', async () => {
   });
 });
 
-test('it answers failed when atc cannot be reached', async () => {
+test('it answers failed with the cause when atc cannot be reached', async () => {
   const ctx = await setupTest();
 
+  const socketPath = join(ctx.folder, 'atc-daemon.sock');
+
   const outcome = await ctx
-    .createNotifier(join(ctx.folder, 'atc.sock'), 's-stu')
+    .createNotifier(socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
-  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'atc send failed' });
+  expect(outcome).toStrictEqual({
+    kind: 'failed',
+    reason: `atc send failed: no atc daemon listens at ${socketPath}`,
+  });
 });
 
 test('it resends a recovery whose reply was lost under its first key, then sends the fault that came back', async () => {

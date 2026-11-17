@@ -46,7 +46,8 @@ in a drop-in with `systemctl --user edit stu-watch.service` after step 1.
 
    Expect: `ExecMainStatus=0`. A `1` means the run failed: a send that the next run tries again, or
    a config or state file it cannot read. `journalctl --user -u stu-watch.service` shows the reason
-   the run printed.
+   the run printed, such as `atc send failed: no atc daemon listens at <socket path>` when no atc
+   daemon runs.
 
 4. Start the timer:
 

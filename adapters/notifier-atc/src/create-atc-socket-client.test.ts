@@ -21,8 +21,8 @@ async function setupTest() {
 
       return atc;
     },
-    createClient: (socketPath: string) =>
-      createAtcSocketClient({ socketPath, client: 'stu-watch/0.1.0', timeoutMs: 200 }),
+    createClient: (socketPaths: readonly string[]) =>
+      createAtcSocketClient({ socketPaths, client: 'stu-watch/0.1.0', timeoutMs: 200 }),
   };
 }
 
@@ -36,7 +36,7 @@ test('it says hello with its client name and protocol 14 before the call', async
     dropFirstReply: [],
   });
 
-  await ctx.createClient(atc.socketPath).write('/session/message', {
+  await ctx.createClient([atc.socketPath]).write('/session/message', {
     session: 's-stu',
     text: 'hi',
     from: 'stu-watch',
@@ -58,7 +58,7 @@ test('it retries once with the daemon protocol that a protocol_mismatch refusal 
     dropFirstReply: [],
   });
 
-  await ctx.createClient(atc.socketPath).write('/session/message', {
+  await ctx.createClient([atc.socketPath]).write('/session/message', {
     session: 's-stu',
     text: 'hi',
     from: 'stu-watch',
@@ -81,7 +81,7 @@ test('it rejects with the atc code of a refusal', async () => {
     dropFirstReply: [],
   });
 
-  const read = ctx.createClient(atc.socketPath).read('/message/get', { message: 'm-9' });
+  const read = ctx.createClient([atc.socketPath]).read('/message/get', { message: 'm-9' });
 
   expect(read).rejects.toMatchObject({ code: 'bad_args' });
 });
@@ -96,7 +96,7 @@ test('it rejects when atc closes the connection before it answers', async () => 
     dropFirstReply: [0],
   });
 
-  const write = ctx.createClient(atc.socketPath).write('/session/message', {
+  const write = ctx.createClient([atc.socketPath]).write('/session/message', {
     session: 's-stu',
     text: 'hi',
     from: 'stu-watch',
@@ -116,15 +116,41 @@ test('it rejects when atc gives no answer within the timeout', async () => {
 
   onTestFinished(() => silent.close());
 
-  const read = ctx.createClient(socketPath).read('/session/list', {});
+  const read = ctx.createClient([socketPath]).read('/session/list', {});
 
   expect(read).rejects.toThrow('atc gave no answer in 200 ms');
 });
 
-test('it rejects when nothing listens at the socket path', async () => {
+test('it rejects with each path it tried when no daemon listens at any of them', async () => {
   const ctx = await setupTest();
 
-  const read = ctx.createClient(join(ctx.folder, 'atc.sock')).read('/session/list', {});
+  const first = join(ctx.folder, 'run', 'atc-daemon.sock');
+  const second = join(ctx.folder, 'state', 'atc-daemon.sock');
+  const read = ctx.createClient([first, second]).read('/session/list', {});
 
-  expect(read).rejects.toThrow();
+  expect(read).rejects.toThrow(`no atc daemon listens at ${first} or ${second}`);
+});
+
+test('it calls the daemon at the next path when none listens at the first', async () => {
+  const ctx = await setupTest();
+
+  const atc = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+  });
+
+  await ctx
+    .createClient([join(ctx.folder, 'run', 'atc-daemon.sock'), atc.socketPath])
+    .write('/session/message', {
+      session: 's-stu',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    });
+
+  expect(atc.stored).toStrictEqual([
+    { id: 'm-1', session: 's-stu', text: 'hi', from: 'stu-watch', idempotencyKey: 'k1' },
+  ]);
 });

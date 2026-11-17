@@ -71,7 +71,6 @@
       "name": "@stu/watch",
       "version": "0.1.0",
       "dependencies": {
-        "@atcx/contract": "catalog:",
         "@stu/faults": "workspace:*",
         "@stu/host-linux": "workspace:*",
         "@stu/model": "workspace:*",

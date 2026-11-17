@@ -1,6 +1,5 @@
-import { resolveAtcPaths } from '@atcx/contract/light';
 import { createHostLinux } from '@stu/host-linux';
-import { createAtcNotifier, createAtcSocketClient } from '@stu/notifier-atc';
+import { createAtcNotifier, createAtcSocketClient, readAtcSocketPaths } from '@stu/notifier-atc';
 import { createProbeNet } from '@stu/probe-net';
 import { createSessionsAtc } from '@stu/sessions-atc';
 import packageJSON from '../package.json' with { type: 'json' };
@@ -16,7 +15,7 @@ if (configPath === undefined) {
 }
 
 const atc = createAtcSocketClient({
-  socketPath: resolveAtcPaths(process.env).socketPath,
+  socketPaths: await readAtcSocketPaths(process.env),
   client: `stu-watch/${packageJSON.version}`,
   timeoutMs: 10_000,
 });

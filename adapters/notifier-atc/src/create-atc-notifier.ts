@@ -43,7 +43,7 @@ function readRefusalOutcome(
   error: unknown,
 ): Promise<SendOutcome> | SendOutcome {
   if (!(error instanceof AtcError)) {
-    return { kind: 'failed', reason: 'atc send failed' };
+    return { kind: 'failed', reason: `atc send failed: ${formatCause(error)}` };
   }
 
   return match(error.code)
@@ -54,6 +54,10 @@ function readRefusalOutcome(
       reason: `idempotency_conflict on ${message.idempotencyKey}`,
     }))
     .otherwise(() => ({ kind: 'failed', reason: error.code }));
+}
+
+function formatCause(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 // The error holds the id atc minted for the message. A message stored under it counts as sent.

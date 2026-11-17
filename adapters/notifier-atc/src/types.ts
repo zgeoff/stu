@@ -11,7 +11,8 @@ export interface AtcSocketClient extends AtcReader {
 }
 
 export interface AtcSocketOptions {
-  readonly socketPath: string;
+  // tried in order until one has a daemon listening
+  readonly socketPaths: readonly string[];
 
   // the build the hello names; atc labels a client whose name starts with "atc/" as the owner
   readonly client: string;

@@ -1,5 +1,6 @@
 import { once } from 'node:events';
 import { createConnection } from 'node:net';
+import type { Socket } from 'node:net';
 import { createInterface } from 'node:readline';
 import { z } from 'zod';
 import { AtcError } from './atc-error.ts';
@@ -38,15 +39,9 @@ async function runAtcCall(
   path: string,
   input: Readonly<Record<string, unknown>>,
 ): Promise<unknown> {
-  const socket = createConnection({ path: options.socketPath });
-
-  socket.setTimeout(options.timeoutMs, () => {
-    socket.destroy(new Error(`atc gave no answer in ${options.timeoutMs} ms`));
-  });
+  const socket = await createAtcConnection(options);
 
   try {
-    await once(socket, 'connect');
-
     const lines = createInterface({ input: socket })[Symbol.asyncIterator]();
     const hello = { client: options.client, protocol, auth: { scheme: 'none' } };
 
@@ -60,6 +55,42 @@ async function runAtcCall(
   } finally {
     socket.destroy();
   }
+}
+
+// A path where no daemon listens fails at connect, before any request is written, so the next
+// path cannot run a request twice.
+async function createAtcConnection(options: AtcSocketOptions): Promise<Socket> {
+  const failures: string[] = [];
+
+  for (const path of options.socketPaths) {
+    const socket = createConnection({ path });
+
+    socket.setTimeout(options.timeoutMs, () => {
+      socket.destroy(new Error(`atc gave no answer in ${options.timeoutMs} ms`));
+    });
+
+    try {
+      await once(socket, 'connect');
+
+      return socket;
+    } catch (error) {
+      socket.destroy();
+
+      if (!isNoListener(error)) {
+        throw error;
+      }
+
+      failures.push(path);
+    }
+  }
+
+  throw new Error(`no atc daemon listens at ${failures.join(' or ')}`);
+}
+
+const NO_LISTENER_SCHEMA = z.object({ code: z.enum(['ENOENT', 'ECONNREFUSED']) });
+
+function isNoListener(error: unknown): boolean {
+  return NO_LISTENER_SCHEMA.safeParse(error).success;
 }
 
 // One oRPC peer request line.

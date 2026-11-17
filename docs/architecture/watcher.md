@@ -74,6 +74,15 @@ message.
 atc keeps a used key for a fixed retention, which its hello answer gives. A resend after that
 retention, such as after the PC slept, reaches stu twice.
 
+## How the notifier reaches atc
+
+The notifier calls atc on the daemon's client socket, `atc-daemon.sock`. The `atc.sock` beside it is
+the socket that session hooks report on, and it answers no client call. The daemon puts its sockets
+in `$XDG_RUNTIME_DIR` as the daemon's own environment sets it, or in its state folder,
+`~/.local/state/atc`, when that variable is unset. A systemd user unit can see another value than
+the daemon did, so the notifier tries the socket under its own `$XDG_RUNTIME_DIR` first, then the
+socket that the daemon wrote to `daemon.json` in its state folder. atc's own clients do the same.
+
 ## How atc labels the sender
 
 atc labels a message by who sent it. A program outside every atc session, whose hello gives a client

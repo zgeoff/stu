@@ -160,7 +160,8 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
     });
   });
 
-  const socketPath = join(folder, 'atc.sock');
+  // the name atc gives its client socket; atc.sock beside it is the socket its session hooks report on
+  const socketPath = join(folder, 'atc-daemon.sock');
 
   server.listen(socketPath);
 
