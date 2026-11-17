@@ -1,15 +1,22 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { WatchConfig } from '@stu/model';
 import { readWatchConfig } from './read-watch-config.ts';
+import { seedWatchConfig } from './test-utils/seed-watch-config.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
 
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
-  return { folder };
+  return {
+    folder,
+    seed: {
+      watchConfig: (input: Partial<WatchConfig>) => seedWatchConfig({ folder }, input),
+    },
+  };
 }
 
 test('it loads the committed example config, which names only placeholder hosts and session', async () => {
@@ -30,14 +37,7 @@ test('it loads the committed example config, which names only placeholder hosts 
 
 test('it reads a relative statePath from the config file folder', async () => {
   const ctx = await setupTest();
-
-  const configPath = join(ctx.folder, 'stu-watch.config.json');
-
-  await writeFile(
-    configPath,
-    JSON.stringify({ atc: { session: 's1' }, statePath: 'reported.json', checks: [] }),
-  );
-
+  const configPath = await ctx.seed.watchConfig({ statePath: 'reported.json' });
   const config = await readWatchConfig(configPath);
 
   expect(config.statePath).toBe(join(ctx.folder, 'reported.json'));
@@ -46,19 +46,12 @@ test('it reads a relative statePath from the config file folder', async () => {
 test('it rejects a config whose check ids repeat', async () => {
   const ctx = await setupTest();
 
-  const configPath = join(ctx.folder, 'stu-watch.config.json');
-
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      atc: { session: 's1' },
-      statePath: 'reported.json',
-      checks: [
-        { id: 'tunnel', kind: 'tcp' },
-        { id: 'tunnel', kind: 'http' },
-      ],
-    }),
-  );
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      { id: 'tunnel', kind: 'tcp' },
+      { id: 'tunnel', kind: 'http' },
+    ],
+  });
 
   expect(readWatchConfig(configPath)).rejects.toThrow('each check id must be unique');
 });
@@ -66,16 +59,9 @@ test('it rejects a config whose check ids repeat', async () => {
 test('it rejects a check id that holds a colon', async () => {
   const ctx = await setupTest();
 
-  const configPath = join(ctx.folder, 'stu-watch.config.json');
-
-  await writeFile(
-    configPath,
-    JSON.stringify({
-      atc: { session: 's1' },
-      statePath: 'reported.json',
-      checks: [{ id: 'a:b', kind: 'tcp' }],
-    }),
-  );
+  const configPath = await ctx.seed.watchConfig({
+    checks: [{ id: 'a:b', kind: 'tcp' }],
+  });
 
   expect(readWatchConfig(configPath)).rejects.toThrow('a check id holds only a-z, 0-9 and -');
 });
