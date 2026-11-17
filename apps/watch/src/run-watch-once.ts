@@ -1,10 +1,8 @@
 import { runWatch } from '@stu/faults';
 import type { WatchResult } from '@stu/faults';
-import type { KindTable, Notifier } from '@stu/model';
-import { readReported, writeReported } from '@stu/state-file';
+import type { KindTable, Notifier, Reported, WatchConfig } from '@stu/model';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 import { makeTimedKind } from './make-timed-kind.ts';
-import { readWatchConfig } from './read-watch-config.ts';
 
 export interface WatchOnce {
   readonly configPath: string;
@@ -12,6 +10,9 @@ export interface WatchOnce {
   readonly at: Temporal.Instant;
   readonly createNotifier: (session: string) => Notifier;
   readonly readNowMs: () => number;
+  readonly readConfig: (configPath: string) => Promise<WatchConfig>;
+  readonly readReported: (statePath: string) => Promise<Reported>;
+  readonly writeReported: (statePath: string, next: Reported) => Promise<void>;
 }
 
 // A check that runs longer than this opens its cannot-run fault, well inside the service's own
@@ -23,8 +24,8 @@ const CHECK_TIMEOUT_MS = 30_000;
 const SEND_WINDOW_MS = 35_000;
 
 export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
-  const config = await readWatchConfig(watch.configPath);
-  const state = await readReported(config.statePath);
+  const config = await watch.readConfig(watch.configPath);
+  const state = await watch.readReported(config.statePath);
 
   return runWatch({
     checks: config.checks,
@@ -40,6 +41,6 @@ export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
       sendUntilMs: watch.at.epochMilliseconds + SEND_WINDOW_MS,
       readNowMs: watch.readNowMs,
     }),
-    writeReported: (next) => writeReported(config.statePath, next),
+    writeReported: (next) => watch.writeReported(config.statePath, next),
   });
 }

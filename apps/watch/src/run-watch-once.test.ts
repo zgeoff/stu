@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { Fault } from '@stu/model';
+import { readReported, writeReported } from '@stu/state-file';
+import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
 import { buildSeeder } from './test-utils/build-seeder.ts';
 
@@ -25,6 +27,9 @@ async function setupTest() {
         at: Temporal.Instant.from(at),
         createNotifier: () => notifier,
         readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
+        readConfig: readWatchConfig,
+        readReported,
+        writeReported,
       }),
   };
 }
