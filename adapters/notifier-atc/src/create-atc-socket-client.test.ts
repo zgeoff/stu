@@ -131,6 +131,27 @@ test('it answers unreached when atc gives no answer within the timeout', async (
   expect(answer).toStrictEqual({ kind: 'unreached', reason: 'atc gave no answer in 200 ms' });
 });
 
+test.each([
+  ['a line that is not JSON', 'not json\n'],
+  ['a refusal with no code', '{"i":"1","p":{"s":500,"b":{"json":{"message":"boom"}}}}\n'],
+])('it answers unreached when atc writes %s', async (_case, line) => {
+  const ctx = await setupTest();
+
+  const broken = createServer((socket) => {
+    socket.on('data', () => socket.write(line));
+  });
+
+  const socketPath = join(ctx.folder, 'broken.sock');
+
+  broken.listen(socketPath);
+
+  onTestFinished(() => broken.close());
+
+  const answer = await ctx.createClient([socketPath]).read('/session/list', {});
+
+  expect(answer).toStrictEqual({ kind: 'unreached', reason: expect.any(String) });
+});
+
 test('it answers unreached with each path it tried when no daemon listens at any of them', async () => {
   const ctx = await setupTest();
 
@@ -199,7 +220,7 @@ test('it calls the daemon at the next path when the first holds a socket file no
   ]);
 });
 
-test('it rejects without trying the next path when the connect fails for another cause', async () => {
+test('it answers unreached without trying the next path when the connect fails for another cause', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
@@ -213,13 +234,17 @@ test('it rejects without trying the next path when the connect fails for another
 
   const overlong = join(ctx.folder, 'x'.repeat(200), 'atc-daemon.sock');
 
-  const write = ctx.createClient([overlong, atc.socketPath]).write('/session/message', {
+  const answer = await ctx.createClient([overlong, atc.socketPath]).write('/session/message', {
     session: 's-stu',
     text: 'hi',
     from: 'stu-watch',
     idempotencyKey: 'k1',
   });
 
-  expect(write).rejects.toMatchObject({ code: 'EINVAL' });
+  expect(answer).toStrictEqual({
+    kind: 'unreached',
+    reason: expect.stringContaining(`atc connect failed at ${overlong}: `),
+  });
+
   expect(atc.hellos).toStrictEqual([]);
 });

@@ -19,8 +19,8 @@ export interface WatchOnce {
 // time limit, so a hung probe still lets the run send and exit.
 const CHECK_TIMEOUT_MS = 30_000;
 
-// No send starts later than this after the run starts. With atc's own 10-second timeout on a send,
-// the last send ends inside the service's 50-second limit, so the run always saves what it found.
+// No send starts later than this after the run starts, so a hung atc leaves the service's 50-second
+// limit room for the sends already started. The run saves what it found before it sends.
 const SEND_WINDOW_MS = 35_000;
 
 export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {

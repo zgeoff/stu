@@ -49,11 +49,15 @@ async function runAtcCall(
     .with({ kind: 'connected' }, async (connection) => {
       const hello = { client: options.client, protocol, auth: { scheme: 'none' } };
 
+      // A reset socket or a line that breaks the peer framing may come after the request reached
+      // atc, so it answers unreached, and the caller resends under the same key.
       try {
         return await Promise.race([
           writeAtcCall(connection.socket, hello, call),
           waitForSilence(connection.socket, options.timeoutMs),
         ]);
+      } catch (error) {
+        return { kind: 'unreached' as const, reason: formatCause(error) };
       } finally {
         connection.socket.destroy();
       }
@@ -84,7 +88,10 @@ async function createAtcConnection(options: AtcSocketOptions): Promise<AtcConnec
       socket.destroy();
 
       if (!isNoListener(error)) {
-        throw error;
+        return {
+          kind: 'unreached',
+          reason: `atc connect failed at ${path}: ${formatCause(error)}`,
+        };
       }
 
       missed.push(path);
@@ -117,6 +124,10 @@ const NO_LISTENER_SCHEMA = z.object({ code: z.enum(['ENOENT', 'ECONNREFUSED']) }
 
 function isNoListener(error: unknown): boolean {
   return NO_LISTENER_SCHEMA.safeParse(error).success;
+}
+
+function formatCause(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 async function writeAtcCall(socket: Socket, hello: unknown, call: AtcCall): Promise<AtcAnswer> {
