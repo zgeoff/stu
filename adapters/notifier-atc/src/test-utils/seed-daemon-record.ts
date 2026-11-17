@@ -5,7 +5,7 @@ import type { DaemonRecord } from './build-mock-daemon-record.ts';
 
 export interface DaemonRecordDeps {
   // atc's state folder, where its daemon writes daemon.json
-  readonly stateDir: string;
+  readonly stateFolder: string;
 }
 
 export async function seedDaemonRecord(
@@ -15,7 +15,7 @@ export async function seedDaemonRecord(
   const record = buildMockDaemonRecord(input);
 
   // The record a running atc daemon leaves in its state folder: atc writes it, and no code here does.
-  await writeFile(join(deps.stateDir, 'daemon.json'), JSON.stringify(record));
+  await writeFile(join(deps.stateFolder, 'daemon.json'), JSON.stringify(record));
 
   return record;
 }

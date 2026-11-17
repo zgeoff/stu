@@ -12,7 +12,7 @@ async function setupTest() {
 
   return {
     folder,
-    seed: buildSeeder({ folder, stateDir: join(folder, 'atc-state') }),
+    seed: buildSeeder({ folder, stateFolder: join(folder, 'atc-state') }),
   };
 }
 

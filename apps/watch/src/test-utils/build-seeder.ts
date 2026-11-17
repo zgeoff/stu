@@ -6,12 +6,12 @@ export interface TestDeps {
   readonly folder: string;
 
   // atc's state folder, where its daemon writes daemon.json
-  readonly stateDir: string;
+  readonly stateFolder: string;
 }
 
 export function buildSeeder(deps: TestDeps) {
   return {
     ...buildWatchConfigSeeder({ folder: deps.folder }),
-    ...buildDaemonRecordSeeder({ stateDir: deps.stateDir }),
+    ...buildDaemonRecordSeeder({ stateFolder: deps.stateFolder }),
   };
 }

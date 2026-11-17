@@ -10,19 +10,19 @@ async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
 
   const home = join(folder, 'home');
-  const runtimeDir = join(folder, 'run');
-  const stateDir = join(home, '.local', 'state', 'atc');
+  const runtimeFolder = join(folder, 'run');
+  const stateFolder = join(home, '.local', 'state', 'atc');
 
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
-  await mkdir(runtimeDir, { recursive: true });
-  await mkdir(stateDir, { recursive: true });
+  await mkdir(runtimeFolder, { recursive: true });
+  await mkdir(stateFolder, { recursive: true });
 
   return {
-    runtimeDir,
-    stateDir,
-    startAtc: async (socketDir: string) => {
-      const atc = await startStubAtc(socketDir, {
+    runtimeFolder,
+    stateFolder,
+    startAtc: async (socketFolder: string) => {
+      const atc = await startStubAtc(socketFolder, {
         protocol: 14,
         unknownLost: [],
         unknownStored: [],
@@ -36,7 +36,7 @@ async function setupTest() {
 
       return atc;
     },
-    seed: buildSeeder({ folder, stateDir }),
+    seed: buildSeeder({ folder, stateFolder }),
 
     // the environment a systemd user unit gets: the manager's, with no ATC_* variable and no
     // XDG_* variable beyond XDG_RUNTIME_DIR
@@ -49,7 +49,7 @@ async function setupTest() {
           USER: 'stu-test',
           SHELL: '/bin/sh',
           PATH: '/usr/bin:/bin',
-          XDG_RUNTIME_DIR: runtimeDir,
+          XDG_RUNTIME_DIR: runtimeFolder,
           INVOCATION_ID: '0123456789abcdef0123456789abcdef',
           JOURNAL_STREAM: '8:4242',
         },
@@ -70,7 +70,7 @@ async function setupTest() {
 
 test('it sends stu one message as stu-watch for a tcp check at a closed port, and nothing on the next run', async () => {
   const ctx = await setupTest();
-  const atc = await ctx.startAtc(ctx.runtimeDir);
+  const atc = await ctx.startAtc(ctx.runtimeFolder);
   const listener = await startStubTCP();
 
   await listener.stop();
@@ -107,7 +107,7 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port, an
 
 test('it reaches a daemon that listens under its state folder through the daemon record', async () => {
   const ctx = await setupTest();
-  const atc = await ctx.startAtc(ctx.stateDir);
+  const atc = await ctx.startAtc(ctx.stateFolder);
 
   await ctx.seed.daemonRecord({ socketPath: atc.socketPath });
 
@@ -140,7 +140,7 @@ test('it exits 1 and prints the cause when no atc daemon listens', async () => {
   expect(result).toStrictEqual({
     exitCode: 1,
     stdout: 'stu-watch: sent 0, failed 1\n',
-    stderr: `stu-watch: broken stays owed: atc send failed: no atc daemon listens at ${join(ctx.runtimeDir, 'atc-daemon.sock')}\n`,
+    stderr: `stu-watch: broken stays owed: atc send failed: no atc daemon listens at ${join(ctx.runtimeFolder, 'atc-daemon.sock')}\n`,
   });
 });
 

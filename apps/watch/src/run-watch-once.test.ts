@@ -19,7 +19,7 @@ async function setupTest() {
 
   return {
     notifier,
-    seed: buildSeeder({ folder, stateDir: join(folder, 'atc-state') }),
+    seed: buildSeeder({ folder, stateFolder: join(folder, 'atc-state') }),
     runAt: (configPath: string, at: string, faults: readonly Fault[]) =>
       runWatchOnce({
         configPath,

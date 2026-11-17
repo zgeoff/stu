@@ -5,19 +5,19 @@ import { join } from 'node:path';
 import { seedDaemonRecord } from './seed-daemon-record.ts';
 
 async function setupTest() {
-  const stateDir = await mkdtemp(join(tmpdir(), 'stu-test-'));
+  const stateFolder = await mkdtemp(join(tmpdir(), 'stu-test-'));
 
-  onTestFinished(() => rm(stateDir, { recursive: true, force: true }));
+  onTestFinished(() => rm(stateFolder, { recursive: true, force: true }));
 
-  return { stateDir };
+  return { stateFolder };
 }
 
 test('it writes daemon.json in the state folder', async () => {
   const ctx = await setupTest();
 
-  await seedDaemonRecord({ stateDir: ctx.stateDir });
+  await seedDaemonRecord({ stateFolder: ctx.stateFolder });
 
-  const text = await readFile(join(ctx.stateDir, 'daemon.json'), 'utf8');
+  const text = await readFile(join(ctx.stateFolder, 'daemon.json'), 'utf8');
 
   const written: unknown = JSON.parse(text);
 
@@ -32,11 +32,11 @@ test('it writes the socket path it is given', async () => {
   const ctx = await setupTest();
 
   await seedDaemonRecord(
-    { stateDir: ctx.stateDir },
+    { stateFolder: ctx.stateFolder },
     { socketPath: '/tmp/stu-test/state/atc-daemon.sock' },
   );
 
-  const text = await readFile(join(ctx.stateDir, 'daemon.json'), 'utf8');
+  const text = await readFile(join(ctx.stateFolder, 'daemon.json'), 'utf8');
 
   const written: unknown = JSON.parse(text);
 

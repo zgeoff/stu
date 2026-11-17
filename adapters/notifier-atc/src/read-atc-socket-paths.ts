@@ -7,9 +7,9 @@ import type { AtcSocketPaths } from './types.ts';
 // own environment has it, which can differ from this process's, such as under a systemd user unit,
 // so atc's clients also try the socket that the daemon's record holds.
 export async function readAtcSocketPaths(
-  env: Readonly<Record<string, string | undefined>>,
+  environment: Readonly<Record<string, string | undefined>>,
 ): Promise<AtcSocketPaths> {
-  const paths = resolveAtcPaths(env);
+  const paths = resolveAtcPaths(environment);
 
   const recorded = await readRecordedSocketPath(paths.daemonRecordFile);
 
