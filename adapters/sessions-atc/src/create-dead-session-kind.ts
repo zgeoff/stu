@@ -1,6 +1,5 @@
 import type { Kind, SessionsPort } from '@stu/model';
 
-// A dead session: atc wants it running, and its harness has exited.
 export function createDeadSessionKind(sessions: SessionsPort): Kind {
   return async () => {
     const listed = await sessions.listSessions();

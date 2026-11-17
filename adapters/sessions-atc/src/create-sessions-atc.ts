@@ -13,7 +13,6 @@ const LISTED_SESSION_SCHEMA = SESSION_DESCRIPTOR_SCHEMA.pick({
 const SESSION_LIST_SCHEMA = z.object({ sessions: z.array(LISTED_SESSION_SCHEMA) });
 const SESSION_GET_SCHEMA = z.object({ lastActivityAt: z.number() });
 
-// Reads every session through /session/list, then each one's last activity through /session/get.
 export function createSessionsAtc(atc: AtcReader): SessionsPort {
   return {
     listSessions: async () => {

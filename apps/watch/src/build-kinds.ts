@@ -10,7 +10,6 @@ export interface KindPorts {
   readonly readNowMs: () => number;
 }
 
-// The kind names a check's `kind` field takes.
 export function buildKinds(ports: KindPorts): KindTable {
   return {
     memory: createMemoryKind(ports.host),

@@ -93,7 +93,6 @@ function isNoListener(error: unknown): boolean {
   return NO_LISTENER_SCHEMA.safeParse(error).success;
 }
 
-// One oRPC peer request line.
 function formatPeerLine(id: string, path: string, input: unknown): string {
   const request = {
     [PEER.id]: id,
