@@ -1,11 +1,12 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createAtcSocketClient } from './create-atc-socket-client.ts';
 import { startStubAtc } from './test-utils/start-stub-atc.ts';
 import type { StubAtcRules } from './test-utils/start-stub-atc.ts';
+import type { AtcSocketPaths } from './types.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -21,7 +22,7 @@ async function setupTest() {
 
       return atc;
     },
-    createClient: (socketPaths: readonly string[]) =>
+    createClient: (socketPaths: AtcSocketPaths) =>
       createAtcSocketClient({ socketPaths, client: 'stu-watch/0.1.0', timeoutMs: 200 }),
   };
 }
@@ -153,4 +154,53 @@ test('it calls the daemon at the next path when none listens at the first', asyn
   expect(atc.stored).toStrictEqual([
     { id: 'm-1', session: 's-stu', text: 'hi', from: 'stu-watch', idempotencyKey: 'k1' },
   ]);
+});
+
+test('it calls the daemon at the next path when the first holds a socket file no daemon listens on', async () => {
+  const ctx = await setupTest();
+
+  const stale = join(ctx.folder, 'stale-atc-daemon.sock');
+
+  await writeFile(stale, '');
+
+  const atc = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+  });
+
+  await ctx.createClient([stale, atc.socketPath]).write('/session/message', {
+    session: 's-stu',
+    text: 'hi',
+    from: 'stu-watch',
+    idempotencyKey: 'k1',
+  });
+
+  expect(atc.stored).toStrictEqual([
+    { id: 'm-1', session: 's-stu', text: 'hi', from: 'stu-watch', idempotencyKey: 'k1' },
+  ]);
+});
+
+test('it rejects without trying the next path when the connect fails for another cause', async () => {
+  const ctx = await setupTest();
+
+  const atc = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+  });
+
+  const overlong = join(ctx.folder, 'x'.repeat(200), 'atc-daemon.sock');
+
+  const write = ctx.createClient([overlong, atc.socketPath]).write('/session/message', {
+    session: 's-stu',
+    text: 'hi',
+    from: 'stu-watch',
+    idempotencyKey: 'k1',
+  });
+
+  expect(write).rejects.toMatchObject({ code: 'EINVAL' });
+  expect(atc.hellos).toStrictEqual([]);
 });

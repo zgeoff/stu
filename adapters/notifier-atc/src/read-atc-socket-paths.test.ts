@@ -9,6 +9,7 @@ async function setupTest() {
 
   const home = join(folder, 'home');
   const stateDir = join(home, '.local', 'state', 'atc');
+  const runtimeDir = join(folder, 'run');
 
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
@@ -16,6 +17,7 @@ async function setupTest() {
 
   return {
     home,
+    runtimeDir,
     stateDir,
     writeDaemonRecord: (text: string) => writeFile(join(stateDir, 'daemon.json'), text),
   };
@@ -23,9 +25,9 @@ async function setupTest() {
 
 test('it gives the client socket under XDG_RUNTIME_DIR when the daemon left no record', async () => {
   const ctx = await setupTest();
-  const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: '/tmp/stu-test/run' });
+  const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: ctx.runtimeDir });
 
-  expect(paths).toStrictEqual(['/tmp/stu-test/run/atc-daemon.sock']);
+  expect(paths).toStrictEqual([join(ctx.runtimeDir, 'atc-daemon.sock')]);
 });
 
 test('it gives the client socket under the state folder when XDG_RUNTIME_DIR is unset', async () => {
@@ -42,10 +44,10 @@ test('it gives the socket the daemon record holds after the computed one when th
     JSON.stringify({ pid: 4242, socketPath: join(ctx.stateDir, 'atc-daemon.sock') }),
   );
 
-  const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: '/tmp/stu-test/run' });
+  const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: ctx.runtimeDir });
 
   expect(paths).toStrictEqual([
-    '/tmp/stu-test/run/atc-daemon.sock',
+    join(ctx.runtimeDir, 'atc-daemon.sock'),
     join(ctx.stateDir, 'atc-daemon.sock'),
   ]);
 });
@@ -54,12 +56,12 @@ test('it gives the computed socket once when the daemon record holds the same on
   const ctx = await setupTest();
 
   await ctx.writeDaemonRecord(
-    JSON.stringify({ pid: 4242, socketPath: '/tmp/stu-test/run/atc-daemon.sock' }),
+    JSON.stringify({ pid: 4242, socketPath: join(ctx.runtimeDir, 'atc-daemon.sock') }),
   );
 
-  const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: '/tmp/stu-test/run' });
+  const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: ctx.runtimeDir });
 
-  expect(paths).toStrictEqual(['/tmp/stu-test/run/atc-daemon.sock']);
+  expect(paths).toStrictEqual([join(ctx.runtimeDir, 'atc-daemon.sock')]);
 });
 
 test.each(['{"pid": 42', '{"pid": 4242}'])(
@@ -71,9 +73,19 @@ test.each(['{"pid": 42', '{"pid": 4242}'])(
 
     const paths = await readAtcSocketPaths({
       HOME: ctx.home,
-      XDG_RUNTIME_DIR: '/tmp/stu-test/run',
+      XDG_RUNTIME_DIR: ctx.runtimeDir,
     });
 
-    expect(paths).toStrictEqual(['/tmp/stu-test/run/atc-daemon.sock']);
+    expect(paths).toStrictEqual([join(ctx.runtimeDir, 'atc-daemon.sock')]);
   },
 );
+
+test('it rejects when the daemon record exists but cannot be read', async () => {
+  const ctx = await setupTest();
+
+  await mkdir(join(ctx.stateDir, 'daemon.json'));
+
+  const paths = readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: ctx.runtimeDir });
+
+  expect(paths).rejects.toMatchObject({ code: 'EISDIR' });
+});
