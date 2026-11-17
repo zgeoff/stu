@@ -37,8 +37,8 @@ export interface ProbeOptions {
 }
 
 export interface NetPort {
-  readonly connect: (host: string, port: number, options: ProbeOptions) => Promise<boolean>;
-  readonly get: (url: string, options: ProbeOptions) => Promise<HttpAnswer>;
+  readonly probeTCP: (host: string, port: number, options: ProbeOptions) => Promise<boolean>;
+  readonly readHTTP: (url: string, options: ProbeOptions) => Promise<HttpAnswer>;
 }
 
 export interface HostPort {

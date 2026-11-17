@@ -39,6 +39,23 @@
         "@zgeoff/testing": "catalog:",
       },
     },
+    "adapters/probe-net": {
+      "name": "@stu/probe-net",
+      "dependencies": {
+        "@stu/model": "workspace:*",
+        "ts-pattern": "catalog:",
+        "zod": "catalog:",
+      },
+    },
+    "adapters/state-file": {
+      "name": "@stu/state-file",
+      "dependencies": {
+        "@stu/model": "workspace:*",
+      },
+      "devDependencies": {
+        "@zgeoff/testing": "catalog:",
+      },
+    },
     "libs/model": {
       "name": "@stu/model",
       "dependencies": {
@@ -365,6 +382,10 @@
     "@stu/model": ["@stu/model@workspace:libs/model"],
 
     "@stu/notifier-atc": ["@stu/notifier-atc@workspace:adapters/notifier-atc"],
+
+    "@stu/probe-net": ["@stu/probe-net@workspace:adapters/probe-net"],
+
+    "@stu/state-file": ["@stu/state-file@workspace:adapters/state-file"],
 
     "@stylistic/eslint-plugin": ["@stylistic/eslint-plugin@5.10.0", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.9.1", "@typescript-eslint/types": "^8.56.0", "eslint-visitor-keys": "^4.2.1", "espree": "^10.4.0", "estraverse": "^5.3.0", "picomatch": "^4.0.3" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0" } }, "sha512-nPK52ZHvot8Ju/0A4ucSX1dcPV2/1clx0kLcH5wDmrE4naKso7TUC/voUyU1O9OTKTrR6MYip6LP0ogEMQ9jPQ=="],
 
