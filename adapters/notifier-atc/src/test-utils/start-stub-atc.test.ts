@@ -19,6 +19,7 @@ async function setupTest() {
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   onTestFinished(() => atc.stop());
@@ -122,6 +123,7 @@ test('it stores a message whose reply it drops, and closes the connection withou
     dropFirstReply: [0],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   onTestFinished(() => atc.stop());
@@ -149,6 +151,7 @@ test('it refuses a key with the code its rules give, and stores nothing', async 
     dropFirstReply: [],
     refusedKeys: { 0: 'unknown_session' },
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   onTestFinished(() => atc.stop());
@@ -184,6 +187,7 @@ test('it answers every message read with the refusal its rules give', async () =
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: 'internal_error',
+    sendAnswer: null,
   });
 
   onTestFinished(() => atc.stop());
@@ -199,4 +203,40 @@ test('it answers every message read with the refusal its rules give', async () =
   const refusal = await lines.next();
 
   expect(refusal.value).toInclude('"code":"internal_error"');
+});
+
+test('it answers each send it takes with the body its rules give, and stores the message', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
+
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+
+  const atc = await startStubAtc(folder, {
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
+    sendAnswer: { accepted: true },
+  });
+
+  onTestFinished(() => atc.stop());
+
+  const socket = createConnection({ path: atc.socketPath });
+
+  onTestFinished(() => socket.destroy());
+
+  const lines = createInterface({ input: socket })[Symbol.asyncIterator]();
+
+  socket.write(
+    '{"i":"1","p":{"u":"/session/message","b":{"json":{"session":"s-stu","text":"FAULT a","from":"stu-watch","idempotencyKey":"k-1"}}}}\n',
+  );
+
+  const answer = await lines.next();
+
+  expect(answer.value).toBe('{"i":"1","p":{"b":{"json":{"accepted":true}}}}');
+
+  expect(atc.stored).toStrictEqual([
+    { id: 'm-1', session: 's-stu', text: 'FAULT a', from: 'stu-watch', idempotencyKey: 'k-1' },
+  ]);
 });

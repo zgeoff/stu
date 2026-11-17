@@ -26,6 +26,9 @@ export interface StubAtcRules {
 
   // the error code every /message/get answers with; null: answer each read from the messages held
   readonly messageReadRefusal: string | null;
+
+  // the body every send that atc takes is answered with; null: the message id and its status
+  readonly sendAnswer: Readonly<Record<string, unknown>> | null;
 }
 
 export interface StoredMessage {
@@ -115,7 +118,7 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
       return;
     }
 
-    writeAnswer(socket, id, { message: entry.id, status: 'queued' });
+    writeAnswer(socket, id, rules.sendAnswer ?? { message: entry.id, status: 'queued' });
   };
 
   const answerLine = (socket: Socket, line: string) => {

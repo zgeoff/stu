@@ -1,4 +1,3 @@
-import { MESSAGE_ANSWER_SCHEMA } from '@atcx/contract';
 import type { AtcAnswer, Notifier, SendOutcome } from '@stu/model';
 import { match } from 'ts-pattern';
 import type { AtcSocketClient } from './types.ts';
@@ -27,11 +26,7 @@ export function createAtcNotifier(options: AtcNotifierOptions): Notifier {
 
       return match(answer)
         .returnType<Promise<SendOutcome> | SendOutcome>()
-        .with({ kind: 'answered' }, (answered) =>
-          MESSAGE_ANSWER_SCHEMA.safeParse(answered.body).success
-            ? { kind: 'sent' }
-            : { kind: 'failed', reason: 'atc answered the send in a shape it does not define' },
-        )
+        .with({ kind: 'answered' }, () => ({ kind: 'sent' }))
         .with({ kind: 'unreached' }, (unreached) => ({
           kind: 'failed',
           reason: `atc send failed: ${unreached.reason}`,

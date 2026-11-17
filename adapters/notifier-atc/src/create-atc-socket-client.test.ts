@@ -37,6 +37,7 @@ test('it says hello with its client name and protocol 14 before the call', async
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   await ctx.createClient([atc.socketPath]).write('/session/message', {
@@ -61,6 +62,7 @@ test('it retries once with the daemon protocol that a protocol_mismatch refusal 
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   await ctx.createClient([atc.socketPath]).write('/session/message', {
@@ -84,6 +86,7 @@ test('it answers refused with the atc code and data of a refusal', async () => {
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   const answer = await ctx.createClient([atc.socketPath]).read('/message/get', { message: 'm-9' });
@@ -101,6 +104,7 @@ test('it answers unreached when atc closes the connection before it answers', as
     dropFirstReply: [0],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   const answer = await ctx.createClient([atc.socketPath]).write('/session/message', {
@@ -178,6 +182,7 @@ test('it calls the daemon at the next path when none listens at the first', asyn
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   await ctx
@@ -208,6 +213,7 @@ test('it calls the daemon at the next path when the first holds a socket file no
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   await ctx.createClient([stale, atc.socketPath]).write('/session/message', {
@@ -232,6 +238,7 @@ test('it answers unreached without trying the next path when the connect fails f
     dropFirstReply: [],
     refusedKeys: {},
     messageReadRefusal: null,
+    sendAnswer: null,
   });
 
   const overlong = join(ctx.folder, 'x'.repeat(200), 'atc-daemon.sock');
