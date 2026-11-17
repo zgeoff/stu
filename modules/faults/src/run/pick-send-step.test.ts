@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import type { SendOutcome } from '@stu/model';
-import { moveFault } from './move-fault.ts';
+import { moveFault } from '../state/move-fault.ts';
 import { pickSendStep } from './pick-send-step.ts';
 import type { SendStep } from './pick-send-step.ts';
 

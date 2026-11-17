@@ -1,7 +1,10 @@
 import type { Reported, ReportedFault } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
-import { buildNextSendKey, buildSendKey } from './build-send-key.ts';
+import { buildNextSendKey } from './build-next-send-key.ts';
+import { buildSendKey } from './build-send-key.ts';
+import { getFaultPhase } from './get-fault-phase.ts';
+import type { FaultPhase } from './get-fault-phase.ts';
 
 export type FaultMove =
   | {
@@ -75,22 +78,6 @@ export function moveFault(reported: Reported, key: string, move: FaultMove): Rep
         },
       };
     })
-    .exhaustive();
-}
-
-// opening: stu is owed the open. open: stu has it. clearing: stu is owed the recovery. gone: the
-// file holds no entry.
-export type FaultPhase = 'opening' | 'open' | 'clearing' | 'gone';
-
-export function getFaultPhase(fault: ReportedFault | undefined): FaultPhase {
-  if (fault === undefined) {
-    return 'gone';
-  }
-
-  return match(fault.owed)
-    .with('open', () => 'opening' as const)
-    .with('clear', () => 'clearing' as const)
-    .with(null, () => 'open' as const)
     .exhaustive();
 }
 

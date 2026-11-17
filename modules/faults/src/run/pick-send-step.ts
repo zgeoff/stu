@@ -1,7 +1,7 @@
 import type { Reported, SendOutcome } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
-import { moveFault } from './move-fault.ts';
+import { moveFault } from '../state/move-fault.ts';
 
 // What a key's owed send came to, and the file that follows. failed keeps the send key; resend and
 // gave-up hold the next key, saved before its send, and gave-up has no try left this run.
@@ -26,7 +26,7 @@ export function pickSendStep(
     .returnType<SendStep>()
     .with({ kind: 'sent' }, () => ({
       kind: 'sent',
-      state: moveFault(reported, key, { to: fault.owed === 'open' ? 'open' : 'gone' }),
+      state: moveFault(reported, key, { to: pickSentMove(fault.owed) }),
     }))
     .with({ kind: 'failed' }, (failed) => ({ kind: 'failed', reason: failed.reason }))
     .with({ kind: 'rekey' }, (rekey) => {
@@ -36,5 +36,13 @@ export function pickSendStep(
         ? { kind: 'resend', state }
         : { kind: 'gave-up', state, reason: rekey.reason };
     })
+    .exhaustive();
+}
+
+// The move a send that atc took makes: the open leaves the fault open, the recovery removes it.
+function pickSentMove(owed: 'open' | 'clear'): 'open' | 'gone' {
+  return match(owed)
+    .with('open', () => 'open' as const)
+    .with('clear', () => 'gone' as const)
     .exhaustive();
 }

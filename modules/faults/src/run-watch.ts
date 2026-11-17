@@ -1,11 +1,11 @@
 import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
-import { formatFaultMessage } from './format-fault-message.ts';
-import { isDue } from './is-due.ts';
-import { pickChanges } from './pick-changes.ts';
-import type { CheckOutcome } from './pick-changes.ts';
-import { pickSendStep } from './pick-send-step.ts';
+import { formatFaultMessage } from './run/format-fault-message.ts';
+import { isDue } from './run/is-due.ts';
+import { pickChanges } from './run/pick-changes.ts';
+import type { CheckOutcome } from './run/pick-changes.ts';
+import { pickSendStep } from './run/pick-send-step.ts';
 
 export interface WatchRun {
   readonly checks: readonly CheckConfig[];
@@ -16,7 +16,6 @@ export interface WatchRun {
   readonly writeReported: (next: Reported) => Promise<void>;
 }
 
-// A send that stays owed, with the fault key and why atc did not take it.
 export interface SendFailure {
   readonly key: string;
   readonly reason: string;
@@ -100,8 +99,8 @@ function collectOwedKeys(reported: Reported): string[] {
 
 const MAX_TRIES = 2;
 
-// Sends what the key owes under its stored key, then saves the file the send's outcome leads to. A
-// new send key is saved before the send that uses it, so a lost reply to it replays on the next run.
+// A new send key is saved before the send that uses it, so a lost reply to that send replays on the
+// next run.
 async function writeOwedMessage(
   run: WatchRun,
   ledger: Ledger,

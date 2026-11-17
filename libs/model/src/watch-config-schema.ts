@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // One check instance. Every field beside these three is a param of its kind.
-export const CHECK_CONFIG_SCHEMA = z.looseObject({
+const CHECK_CONFIG_SCHEMA = z.looseObject({
   // prefixes every fault key the check yields, so it holds no ':'
   id: z.string().regex(/^[a-z0-9-]+$/u, 'a check id holds only a-z, 0-9 and -'),
 

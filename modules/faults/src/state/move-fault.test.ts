@@ -1,7 +1,9 @@
 import { expect, test } from 'bun:test';
 import type { Reported } from '@stu/model';
-import { getFaultPhase, moveFault } from './move-fault.ts';
-import type { FaultMove, FaultPhase } from './move-fault.ts';
+import { getFaultPhase } from './get-fault-phase.ts';
+import type { FaultPhase } from './get-fault-phase.ts';
+import { moveFault } from './move-fault.ts';
+import type { FaultMove } from './move-fault.ts';
 
 function setupTest() {
   const key = 'tunnel:a:22';

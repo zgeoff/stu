@@ -1,6 +1,7 @@
 import type { Fault, Reported } from '@stu/model';
 import { match } from 'ts-pattern';
-import { getFaultPhase, moveFault } from './move-fault.ts';
+import { getFaultPhase } from '../state/get-fault-phase.ts';
+import { moveFault } from '../state/move-fault.ts';
 
 // What a due check came to on this run. A check that wasn't due has no outcome.
 export type CheckOutcome =
@@ -77,9 +78,10 @@ function pickRanChanges(
 // A fault whose open stu may not have yet keeps owing it: its recovery waits for atc to take the
 // open, because the open may have reached stu with its reply lost.
 function pickClearIfOpen(reported: Reported, key: string): Reported {
-  return getFaultPhase(reported.faults[key]) === 'open'
-    ? moveFault(reported, key, { to: 'clearing' })
-    : reported;
+  return match(getFaultPhase(reported.faults[key]))
+    .with('open', () => moveFault(reported, key, { to: 'clearing' }))
+    .with('opening', 'clearing', 'gone', () => reported)
+    .exhaustive();
 }
 
 function pickLastRun(reported: Reported, findings: RunFindings): Reported {

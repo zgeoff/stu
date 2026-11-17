@@ -7,8 +7,8 @@ import type {
   Reported,
   SendOutcome,
 } from '@stu/model';
-import { buildSendKey } from './build-send-key.ts';
 import { runWatch } from './run-watch.ts';
+import { buildSendKey } from './state/build-send-key.ts';
 import { buildStubNotifier } from './test-utils/build-stub-notifier.ts';
 import { makeStubKind } from './test-utils/make-stub-kind.ts';
 
