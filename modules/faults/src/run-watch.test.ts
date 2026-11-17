@@ -208,6 +208,8 @@ test('it sends nothing on a second run that throws while the cannot-run fault is
   expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
     'FAULT disk-main: cannot run: df: not found',
   ]);
+
+  expect(ctx.file.state.faults['disk-main']?.since).toBe('2026-11-17T08:00:00.000Z');
 });
 
 test('it cuts the reason of a check that throws to its first line, at 200 characters', async () => {
