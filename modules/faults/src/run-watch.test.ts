@@ -53,6 +53,30 @@ test('it sends stu one FAULT message when a check goes from passing to failing',
   ]);
 });
 
+test('it sends one FAULT message with the first line when a check yields the same key twice', async () => {
+  const ctx = setupTest();
+
+  const kinds = {
+    disk: makeStubKind([
+      [
+        { key: '/home', line: '/home is 95% full' },
+        { key: '/home', line: '/home is 96% full' },
+      ],
+    ]),
+  };
+
+  const checks = [{ id: 'disk-main', kind: 'disk' }];
+
+  await ctx.runAt('2026-11-17T08:00:00Z', checks, kinds, ctx.notifier);
+
+  expect(ctx.notifier.sent).toStrictEqual([
+    {
+      text: 'FAULT disk-main:/home: /home is 95% full',
+      idempotencyKey: expect.stringMatching(/^stu-watch:[0-9a-f]{32}$/u),
+    },
+  ]);
+});
+
 test('it sends stu one RECOVERED message when the failing check passes again', async () => {
   const ctx = setupTest();
   const kinds = { disk: makeStubKind([[{ key: '/home', line: '/home is 95% full' }], []]) };
