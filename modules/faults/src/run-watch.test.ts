@@ -190,6 +190,18 @@ test('it opens one cannot-run fault for a check that throws, and clears none of 
   ]);
 });
 
+test('it cuts the reason of a check that throws to its first line, at 200 characters', async () => {
+  const ctx = setupTest();
+  const reason = `${'x'.repeat(300)}\n    at readDiskUsage (create-host-linux.ts:12:3)`;
+  const kinds = { disk: makeStubKind([new Error(reason)]) };
+
+  await ctx.runAt('2026-11-17T08:00:00Z', [{ id: 'disk-main', kind: 'disk' }], kinds, ctx.notifier);
+
+  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+    `FAULT disk-main: cannot run: ${'x'.repeat(200)}`,
+  ]);
+});
+
 test('it clears the cannot-run fault on the check next good run', async () => {
   const ctx = setupTest();
   const fault = { key: '/home', line: '/home is 95% full' };
