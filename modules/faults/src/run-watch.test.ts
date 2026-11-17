@@ -194,6 +194,22 @@ test('it opens one cannot-run fault for a check that throws, and clears none of 
   ]);
 });
 
+test('it sends nothing on a second run that throws while the cannot-run fault is held', async () => {
+  const ctx = setupTest();
+  const checks = [{ id: 'disk-main', kind: 'disk' }];
+  const kinds = { disk: makeStubKind([new Error('df: not found'), new Error('df: not found')]) };
+
+  await ctx.runAt('2026-11-17T08:00:00Z', checks, kinds, ctx.notifier);
+
+  const result = await ctx.runAt('2026-11-17T08:01:00Z', checks, kinds, ctx.notifier);
+
+  expect(result).toStrictEqual({ state: expect.any(Object), sent: 0, failures: [] });
+
+  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+    'FAULT disk-main: cannot run: df: not found',
+  ]);
+});
+
 test('it cuts the reason of a check that throws to its first line, at 200 characters', async () => {
   const ctx = setupTest();
   const reason = `${'x'.repeat(300)}\n    at readDiskUsage (create-host-linux.ts:12:3)`;
