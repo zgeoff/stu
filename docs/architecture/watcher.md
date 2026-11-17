@@ -17,7 +17,9 @@ cannot look, such as a `df` that fails, throws.
 The engine prefixes each fault key with its check id, so two checks never share a key. A check id
 holds no `:`, so the bare id is free for the check's own cannot-run fault: a check that throws or
 runs past its timeout opens that fault, and its next good run clears it. A check that throws clears
-none of its other faults, because a check that cannot look has not seen them recover.
+none of its other faults, because a check that cannot look has not seen them recover. The program
+exits when the run ends, which stops a probe still running past its timeout, and the service stops a
+run that outlives its own time limit, so one hung probe never holds back the next run.
 
 A check with `everyMin` runs when that many minutes have passed since its last run, less a few
 seconds of slack, so a timer that fires a little early still runs it. A run that throws still counts

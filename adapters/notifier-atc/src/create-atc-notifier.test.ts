@@ -39,7 +39,6 @@ async function setupTest() {
         kinds,
         state: file.state,
         at: Temporal.Instant.from(at),
-        checkTimeoutMs: 1000,
         notifier,
         writeReported: (next) => {
           file.state = next;

@@ -29,9 +29,13 @@ async function setupTest() {
         stderr: 'pipe',
       });
 
-      const [exitCode, stdout] = await Promise.all([watcher.exited, watcher.stdout.text()]);
+      const [exitCode, stdout, stderr] = await Promise.all([
+        watcher.exited,
+        watcher.stdout.text(),
+        watcher.stderr.text(),
+      ]);
 
-      return { exitCode, stdout };
+      return { exitCode, stdout, stderr };
     },
   };
 }
@@ -57,8 +61,8 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port, an
   const second = await ctx.runMain([configPath]);
 
   expect([first, second, ctx.atc.hellos, ctx.atc.stored]).toStrictEqual([
-    { exitCode: 0, stdout: 'stu-watch: sent 1, failed 0\n' },
-    { exitCode: 0, stdout: '' },
+    { exitCode: 0, stdout: 'stu-watch: sent 1, failed 0\n', stderr: '' },
+    { exitCode: 0, stdout: '', stderr: '' },
     [{ client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } }],
     [
       {
@@ -72,7 +76,7 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port, an
   ]);
 });
 
-test('it exits 1 when a send fails', async () => {
+test('it exits 1 and prints why when a send fails', async () => {
   const ctx = await setupTest();
 
   await ctx.atc.stop();
@@ -90,7 +94,11 @@ test('it exits 1 when a send fails', async () => {
 
   const result = await ctx.runMain([configPath]);
 
-  expect(result).toStrictEqual({ exitCode: 1, stdout: 'stu-watch: sent 0, failed 1\n' });
+  expect(result).toStrictEqual({
+    exitCode: 1,
+    stdout: 'stu-watch: sent 0, failed 1\n',
+    stderr: 'stu-watch: broken stays owed: atc send failed\n',
+  });
 });
 
 test('it exits 2 without a config path', async () => {

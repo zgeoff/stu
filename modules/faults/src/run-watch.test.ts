@@ -24,7 +24,6 @@ function setupTest() {
         kinds,
         state: file.state,
         at: Temporal.Instant.from(at),
-        checkTimeoutMs: 1000,
         notifier,
         writeReported: (next) => {
           file.state = next;
@@ -70,6 +69,28 @@ test('it sends stu one RECOVERED message when the failing check passes again', a
       idempotencyKey: expect.stringMatching(/^stu-watch:[0-9a-f]{32}$/u),
     },
   ]);
+});
+
+test('it sends the recovery under a key of its own, not the open message key', async () => {
+  const ctx = setupTest();
+  const kinds = { disk: makeStubKind([[{ key: '/home', line: '/home is 95% full' }], []]) };
+  const checks = [{ id: 'disk-main', kind: 'disk' }];
+
+  await ctx.runAt('2026-11-17T08:00:00Z', checks, kinds, ctx.notifier);
+  await ctx.runAt('2026-11-17T08:01:00Z', checks, kinds, ctx.notifier);
+
+  const [open, recovery] = ctx.notifier.sent;
+
+  expect(recovery?.idempotencyKey === open?.idempotencyKey).toBeFalse();
+});
+
+test('it keeps no send key for a fault whose open atc took', async () => {
+  const ctx = setupTest();
+  const kinds = { disk: makeStubKind([[{ key: '/home', line: '/home is 95% full' }]]) };
+
+  await ctx.runAt('2026-11-17T08:00:00Z', [{ id: 'disk-main', kind: 'disk' }], kinds, ctx.notifier);
+
+  expect(ctx.file.state.faults['disk-main:/home']?.sendKey).toBeNull();
 });
 
 test('it sends one message over 5 runs of a fault that stays failing', async () => {
@@ -147,8 +168,8 @@ test('it keeps a failed send owed in the file', async () => {
 
   const result = await ctx.runAt('2026-11-17T08:00:00Z', checks, kinds, notifier);
 
-  expect([result.failedSends, ctx.file.state.faults['disk-main:/home']?.owed]).toStrictEqual([
-    1,
+  expect([result.failures, ctx.file.state.faults['disk-main:/home']?.owed]).toStrictEqual([
+    [{ key: 'disk-main:/home', reason: 'atc unreachable' }],
     'open',
   ]);
 });
@@ -182,18 +203,6 @@ test('it clears the cannot-run fault on the check next good run', async () => {
     'FAULT disk-main:/home: /home is 95% full',
     'FAULT disk-main: cannot run: df: not found',
     'RECOVERED disk-main (failing since 2026-11-17T08:01:00.000Z): cannot run: df: not found',
-  ]);
-});
-
-test('it opens a cannot-run fault for a check that runs past its timeout', async () => {
-  const ctx = setupTest();
-  const checks = [{ id: 'slow', kind: 'hang' }];
-  const kinds = { hang: () => new Promise<never>(() => {}) };
-
-  await ctx.runAt('2026-11-17T08:00:00Z', checks, kinds, ctx.notifier);
-
-  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
-    'FAULT slow: cannot run: timed out after 1000 ms',
   ]);
 });
 

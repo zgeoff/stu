@@ -33,8 +33,15 @@ const result = await runWatchOnce({
   createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),
 });
 
-if (result.sent > 0 || result.failedSends > 0) {
-  console.log(`stu-watch: sent ${result.sent}, failed ${result.failedSends}`);
+if (result.sent > 0 || result.failures.length > 0) {
+  console.log(`stu-watch: sent ${result.sent}, failed ${result.failures.length}`);
 }
 
-process.exitCode = result.failedSends > 0 ? 1 : 0;
+for (const failure of result.failures) {
+  console.error(`stu-watch: ${failure.key} stays owed: ${failure.reason}`);
+}
+
+// A kind that ran past its timeout may still hold a process or a socket, and the run is over.
+const exitCode = result.failures.length > 0 ? 1 : 0;
+
+process.exit(exitCode);

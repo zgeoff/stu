@@ -44,8 +44,9 @@ in a drop-in with `systemctl --user edit stu-watch.service` after step 1.
    systemctl --user show -p ExecMainStatus stu-watch.service
    ```
 
-   Expect: `ExecMainStatus=0`. A `1` means a send failed, and the next run sends it again.
-   `journalctl --user -u stu-watch.service` shows what the run printed.
+   Expect: `ExecMainStatus=0`. A `1` means the run failed: a send that the next run tries again, or
+   a config or state file it cannot read. `journalctl --user -u stu-watch.service` shows the reason
+   the run printed.
 
 4. Start the timer:
 

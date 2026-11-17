@@ -1,5 +1,4 @@
-import { setTimeout as sleep } from 'node:timers/promises';
-import type { CheckConfig, Fault, KindTable, Notifier, Reported } from '@stu/model';
+import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
 import { buildNextSendKey } from './build-send-key.ts';
@@ -14,35 +13,36 @@ export interface WatchRun {
   readonly kinds: KindTable;
   readonly state: Reported;
   readonly at: Temporal.Instant;
-  readonly checkTimeoutMs: number;
   readonly notifier: Notifier;
   readonly writeReported: (next: Reported) => Promise<void>;
+}
+
+// A send that stays owed, with the fault key and why atc did not take it.
+export interface SendFailure {
+  readonly key: string;
+  readonly reason: string;
 }
 
 export interface WatchResult {
   readonly state: Reported;
   readonly sent: number;
-  readonly failedSends: number;
+  readonly failures: readonly SendFailure[];
 }
 
 interface Ledger {
   state: Reported;
   sent: number;
-  failedSends: number;
+  failures: SendFailure[];
 }
 
-// One run: every due check, then each send owed from an earlier run, then the sends this run's
-// changes owe, one message per change.
 export async function runWatch(run: WatchRun): Promise<WatchResult> {
   const due = run.checks.filter((check) =>
     isDue(check, run.state.lastRun[check.id], run.at.epochMilliseconds),
   );
 
-  const outcomes = await Promise.all(
-    due.map((check) => runCheck(check, run.kinds, run.checkTimeoutMs)),
-  );
+  const outcomes = await Promise.all(due.map((check) => runCheck(check, run.kinds)));
 
-  const ledger: Ledger = { state: run.state, sent: 0, failedSends: 0 };
+  const ledger: Ledger = { state: run.state, sent: 0, failures: [] };
 
   for (const key of collectOwedKeys(run.state)) {
     await writeOwedMessage(run, ledger, key);
@@ -69,11 +69,7 @@ export async function runWatch(run: WatchRun): Promise<WatchResult> {
   return ledger;
 }
 
-async function runCheck(
-  check: CheckConfig,
-  kinds: KindTable,
-  timeoutMs: number,
-): Promise<CheckOutcome> {
+async function runCheck(check: CheckConfig, kinds: KindTable): Promise<CheckOutcome> {
   const { id, kind: kindName, everyMin: _, ...params } = check;
   const kind = kinds[kindName];
 
@@ -81,23 +77,13 @@ async function runCheck(
     return { kind: 'threw', check: id, reason: `no kind named ${kindName}` };
   }
 
-  const timer = new AbortController();
-
   try {
-    const faults = await Promise.race([kind(params), rejectAfter(timeoutMs, timer.signal)]);
+    const faults = await kind(params);
 
     return { kind: 'ran', check: id, faults };
   } catch (error) {
     return { kind: 'threw', check: id, reason: formatReason(error) };
-  } finally {
-    timer.abort();
   }
-}
-
-async function rejectAfter(timeoutMs: number, signal: AbortSignal): Promise<readonly Fault[]> {
-  await sleep(timeoutMs, undefined, { signal });
-
-  throw new Error(`timed out after ${timeoutMs} ms`);
 }
 
 // The first line of the error, cut to a length that fits one message line.
@@ -141,12 +127,12 @@ async function writeOwedMessage(
 
       await run.writeReported(ledger.state);
     })
-    .with({ kind: 'failed' }, () => {
-      ledger.failedSends += 1;
+    .with({ kind: 'failed' }, (failed) => {
+      ledger.failures.push({ key, reason: failed.reason });
 
       return Promise.resolve();
     })
-    .with({ kind: 'rekey' }, async () => {
+    .with({ kind: 'rekey' }, async (rekey) => {
       ledger.state = {
         ...ledger.state,
         faults: { ...ledger.state.faults, [key]: { ...fault, sendKey: buildNextSendKey(sendKey) } },
@@ -157,7 +143,7 @@ async function writeOwedMessage(
       if (triesLeft > 1) {
         await writeOwedMessage(run, ledger, key, triesLeft - 1);
       } else {
-        ledger.failedSends += 1;
+        ledger.failures.push({ key, reason: rekey.reason });
       }
     })
     .exhaustive();
