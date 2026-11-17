@@ -21,9 +21,6 @@ async function setupTest() {
     runtimeDir,
     stateDir,
     seed: buildSeeder({ stateDir }),
-
-    // a record atc's schema would refuse, which no seed writes
-    writeBrokenDaemonRecord: (text: string) => writeFile(join(stateDir, 'daemon.json'), text),
   };
 }
 
@@ -69,7 +66,8 @@ test.each(['{"pid": 42', '{"pid": 4242}'])(
   async (record) => {
     const ctx = await setupTest();
 
-    await ctx.writeBrokenDaemonRecord(record);
+    // a torn or incomplete record, which no seed writes because atc's schema refuses it
+    await writeFile(join(ctx.stateDir, 'daemon.json'), record);
 
     const paths = await readAtcSocketPaths({
       HOME: ctx.home,
