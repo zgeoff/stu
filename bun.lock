@@ -92,6 +92,7 @@
         "@stu/model": "workspace:*",
         "tiny-invariant": "catalog:",
         "ts-pattern": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@zgeoff/testing": "catalog:",

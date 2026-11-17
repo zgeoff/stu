@@ -7,6 +7,7 @@ import type {
   Reported,
   SendOutcome,
 } from '@stu/model';
+import { z } from 'zod';
 import { runWatch } from './run-watch.ts';
 import { buildSendKey } from './state/build-send-key.ts';
 import { buildStubNotifier } from './test-utils/build-stub-notifier.ts';
@@ -202,6 +203,18 @@ test('it cuts the reason of a check that throws to its first line, at 200 charac
 
   expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
     `FAULT disk-main: cannot run: ${'x'.repeat(200)}`,
+  ]);
+});
+
+test('it names the field and the cause when a check throws a schema error', async () => {
+  const ctx = setupTest();
+  const parsed = z.object({ host: z.string(), port: z.number() }).safeParse({ host: 'a' });
+  const kinds = { tcp: makeStubKind([parsed.error ?? new Error('parsed')]) };
+
+  await ctx.runAt('2026-11-17T08:00:00Z', [{ id: 'tunnel', kind: 'tcp' }], kinds, ctx.notifier);
+
+  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+    'FAULT tunnel: cannot run: port: Invalid input: expected number, received undefined',
   ]);
 });
 

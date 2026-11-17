@@ -1,6 +1,7 @@
 import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
+import { z } from 'zod';
 import { formatFaultMessage } from './run/format-fault-message.ts';
 import { isDue } from './run/is-due.ts';
 import { pickChanges } from './run/pick-changes.ts';
@@ -84,11 +85,19 @@ async function runCheck(check: CheckConfig, kinds: KindTable): Promise<CheckOutc
   }
 }
 
-// The first line of the error, cut to a length that fits one message line.
 function formatReason(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error);
+  return (toErrorText(error).split('\n')[0] ?? '').slice(0, 200);
+}
 
-  return (text.split('\n')[0] ?? '').slice(0, 200);
+// A zod error's message is its issues as multi-line JSON, whose first line names nothing.
+function toErrorText(error: unknown): string {
+  if (error instanceof z.ZodError) {
+    return error.issues
+      .map((issue) => `${issue.path.join('.') || 'params'}: ${issue.message}`)
+      .join('; ');
+  }
+
+  return error instanceof Error ? error.message : String(error);
 }
 
 function collectOwedKeys(reported: Reported): string[] {
