@@ -12,7 +12,7 @@ const MEMORY_PARAMS = z.object({
   maxFullAvg60: z.number().min(0).max(100).optional(),
 });
 
-export function createMemoryKind(host: HostPort): Kind {
+export function makeMemoryKind(host: HostPort): Kind {
   return async (params) => {
     const limits = MEMORY_PARAMS.parse(params);
 

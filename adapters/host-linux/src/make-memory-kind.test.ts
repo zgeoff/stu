@@ -1,10 +1,10 @@
 import { expect, mock, test } from 'bun:test';
-import { createMemoryKind } from './create-memory-kind.ts';
+import { makeMemoryKind } from './make-memory-kind.ts';
 
 function setupTest() {
   return {
     createKind: (meminfo: string, pressure: string) =>
-      createMemoryKind({
+      makeMemoryKind({
         readMeminfo: mock(() => Promise.resolve(meminfo)),
         readMemoryPressure: mock(() => Promise.resolve(pressure)),
         readDiskUsage: mock(() => Promise.reject(new Error('the memory kind reads no disk'))),

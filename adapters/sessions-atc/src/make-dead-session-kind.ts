@@ -1,6 +1,6 @@
 import type { Kind, SessionsPort } from '@stu/model';
 
-export function createDeadSessionKind(sessions: SessionsPort): Kind {
+export function makeDeadSessionKind(sessions: SessionsPort): Kind {
   return async () => {
     const listed = await sessions.listSessions();
 

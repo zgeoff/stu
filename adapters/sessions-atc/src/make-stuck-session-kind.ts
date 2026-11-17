@@ -6,7 +6,7 @@ const STUCK_PARAMS = z.object({
   stuckMin: z.number().positive(),
 });
 
-export function createStuckSessionKind(sessions: SessionsPort, readNowMs: () => number): Kind {
+export function makeStuckSessionKind(sessions: SessionsPort, readNowMs: () => number): Kind {
   return async (params) => {
     const limits = STUCK_PARAMS.parse(params);
 

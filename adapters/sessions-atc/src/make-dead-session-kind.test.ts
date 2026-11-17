@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
-import { createDeadSessionKind } from './create-dead-session-kind.ts';
 import { createSessionsAtc } from './create-sessions-atc.ts';
+import { makeDeadSessionKind } from './make-dead-session-kind.ts';
 import { buildMockSessionDescriptor } from './test-utils/build-mock-session-descriptor.ts';
 import { buildStubAtcReader } from './test-utils/build-stub-atc-reader.ts';
 
@@ -30,7 +30,7 @@ test('it sees one fault keyed by the session id for a session atc wants running 
     },
   );
 
-  const kind = createDeadSessionKind(createSessionsAtc(reader));
+  const kind = makeDeadSessionKind(createSessionsAtc(reader));
 
   const faults = await kind({});
 

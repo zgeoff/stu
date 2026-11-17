@@ -1,7 +1,7 @@
-import { createDiskKind, createMemoryKind } from '@stu/host-linux';
+import { makeDiskKind, makeMemoryKind } from '@stu/host-linux';
 import type { HostPort, KindTable, NetPort, SessionsPort } from '@stu/model';
-import { createHTTPKind, createTCPKind } from '@stu/probe-net';
-import { createDeadSessionKind, createStuckSessionKind } from '@stu/sessions-atc';
+import { makeHTTPKind, makeTCPKind } from '@stu/probe-net';
+import { makeDeadSessionKind, makeStuckSessionKind } from '@stu/sessions-atc';
 
 export interface KindPorts {
   readonly host: HostPort;
@@ -12,11 +12,11 @@ export interface KindPorts {
 
 export function buildKinds(ports: KindPorts): KindTable {
   return {
-    memory: createMemoryKind(ports.host),
-    disk: createDiskKind(ports.host),
-    tcp: createTCPKind(ports.net),
-    http: createHTTPKind(ports.net),
-    'session-dead': createDeadSessionKind(ports.sessions),
-    'session-stuck': createStuckSessionKind(ports.sessions, ports.readNowMs),
+    memory: makeMemoryKind(ports.host),
+    disk: makeDiskKind(ports.host),
+    tcp: makeTCPKind(ports.net),
+    http: makeHTTPKind(ports.net),
+    'session-dead': makeDeadSessionKind(ports.sessions),
+    'session-stuck': makeStuckSessionKind(ports.sessions, ports.readNowMs),
   };
 }

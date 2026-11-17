@@ -1,10 +1,10 @@
 import { expect, mock, test } from 'bun:test';
-import { createTCPKind } from './create-tcp-kind.ts';
+import { makeTCPKind } from './make-tcp-kind.ts';
 
 function setupTest() {
   return {
     createKind: (reached: boolean) =>
-      createTCPKind({
+      makeTCPKind({
         probeTCP: mock(() => Promise.resolve(reached)),
         readHTTP: mock(() => Promise.reject(new Error('the tcp kind reads no http'))),
       }),

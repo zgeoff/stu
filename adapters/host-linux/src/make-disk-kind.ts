@@ -9,7 +9,7 @@ const DISK_PARAMS = z.object({
   maxUsedPct: z.number().min(0).max(100),
 });
 
-export function createDiskKind(host: HostPort): Kind {
+export function makeDiskKind(host: HostPort): Kind {
   return async (params) => {
     const limits = DISK_PARAMS.parse(params);
 

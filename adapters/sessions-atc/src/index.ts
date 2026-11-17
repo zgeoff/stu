@@ -1,3 +1,3 @@
-export { createDeadSessionKind } from './create-dead-session-kind.ts';
+export { makeDeadSessionKind } from './make-dead-session-kind.ts';
 export { createSessionsAtc } from './create-sessions-atc.ts';
-export { createStuckSessionKind } from './create-stuck-session-kind.ts';
+export { makeStuckSessionKind } from './make-stuck-session-kind.ts';
