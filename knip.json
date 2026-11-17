@@ -2,9 +2,10 @@
   "$schema": "./node_modules/knip/schema.json",
   // the shared oxlint config loads the plugin, so knip never sees it
   "ignoreDependencies": ["@stylistic/eslint-plugin"],
-  // the test script names its roots, so knip reads no package's tests from it. The agent hooks run
-  // .claude/hooks/start.ts from .claude/settings.json and .codex/hooks.json, which knip never reads.
+  // the test script names its roots, so knip reads no package's tests from it
   "workspaces": {
+    // the agent hooks run start.ts from .claude/settings.json and .codex/hooks.json, which knip
+    // never reads
     ".": { "entry": ["rig.config.ts", ".claude/hooks/start.ts"] },
     "{apps,modules,adapters,libs}/*": {
       "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts", "bench/*.bench.ts"]
