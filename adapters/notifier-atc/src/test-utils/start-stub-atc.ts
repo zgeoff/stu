@@ -150,7 +150,10 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
 
   const server = createServer((socket) => {
     connections.add(socket);
-    socket.on('close', () => connections.delete(socket));
+
+    socket.on('close', () => {
+      connections.delete(socket);
+    });
 
     createInterface({ input: socket }).on('line', (line) => {
       answerLine(socket, line);

@@ -347,11 +347,6 @@ test('it resends an owed recovery before it opens the fault that came back, unde
     notifier.sent.length,
     recoveryResend,
     reopen?.text,
-    reopen?.idempotencyKey,
-  ]).toStrictEqual([
-    4,
-    recovery,
-    'FAULT tunnel:a:22: no answer from a:22',
-    expect.not.stringMatching(open?.idempotencyKey ?? ''),
-  ]);
+    reopen?.idempotencyKey === open?.idempotencyKey,
+  ]).toStrictEqual([4, recovery, 'FAULT tunnel:a:22: no answer from a:22', false]);
 });
