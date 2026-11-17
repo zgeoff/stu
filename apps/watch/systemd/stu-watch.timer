@@ -1,0 +1,9 @@
+[Unit]
+Description=Run stu-watch once a minute
+
+[Timer]
+OnCalendar=minutely
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

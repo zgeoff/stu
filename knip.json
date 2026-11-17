@@ -5,6 +5,8 @@
   // the test script names its roots, so knip reads no package's tests from it
   "workspaces": {
     ".": { "entry": ["rig.config.ts"] },
+    // the systemd unit runs the watcher's entry point by its path
+    "apps/watch": { "entry": ["src/main.ts", "src/**/*.test.ts"] },
     "{apps,modules,adapters,libs}/*": {
       "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts", "bench/*.bench.ts"]
     }

@@ -1,0 +1,8 @@
+[Unit]
+Description=stu-watch: one run of every due check
+
+[Service]
+Type=oneshot
+# The folder of your stu clone. Change it when the clone lives elsewhere.
+WorkingDirectory=%h/stu
+ExecStart=%h/.bun/bin/bun apps/watch/src/main.ts apps/watch/stu-watch.config.json

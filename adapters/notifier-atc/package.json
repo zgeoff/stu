@@ -17,7 +17,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@stu/faults": "workspace:*",
-    "@zgeoff/testing": "catalog:"
+    "@stu/faults": "workspace:*"
   }
 }

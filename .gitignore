@@ -26,3 +26,7 @@ Thumbs.db
 
 # turbo cache and logs
 .turbo
+
+# the watcher's local config and reported file: they hold hostnames, addresses and session ids
+stu-watch.config.json
+stu-watch.reported.json

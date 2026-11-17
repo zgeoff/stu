@@ -1,0 +1,20 @@
+{
+  "name": "@stu/watch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The watcher: one run of every due check, started by a systemd user timer",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@atcx/contract": "catalog:",
+    "@stu/faults": "workspace:*",
+    "@stu/host-linux": "workspace:*",
+    "@stu/model": "workspace:*",
+    "@stu/notifier-atc": "workspace:*",
+    "@stu/probe-net": "workspace:*",
+    "@stu/sessions-atc": "workspace:*",
+    "@stu/state-file": "workspace:*"
+  }
+}

@@ -43,7 +43,6 @@
       },
       "devDependencies": {
         "@stu/faults": "workspace:*",
-        "@zgeoff/testing": "catalog:",
       },
     },
     "adapters/probe-net": {
@@ -61,17 +60,25 @@
         "@stu/model": "workspace:*",
         "zod": "catalog:",
       },
-      "devDependencies": {
-        "@zgeoff/testing": "catalog:",
-      },
     },
     "adapters/state-file": {
       "name": "@stu/state-file",
       "dependencies": {
         "@stu/model": "workspace:*",
       },
-      "devDependencies": {
-        "@zgeoff/testing": "catalog:",
+    },
+    "apps/watch": {
+      "name": "@stu/watch",
+      "version": "0.1.0",
+      "dependencies": {
+        "@atcx/contract": "catalog:",
+        "@stu/faults": "workspace:*",
+        "@stu/host-linux": "workspace:*",
+        "@stu/model": "workspace:*",
+        "@stu/notifier-atc": "workspace:*",
+        "@stu/probe-net": "workspace:*",
+        "@stu/sessions-atc": "workspace:*",
+        "@stu/state-file": "workspace:*",
       },
     },
     "libs/model": {
@@ -408,6 +415,8 @@
     "@stu/sessions-atc": ["@stu/sessions-atc@workspace:adapters/sessions-atc"],
 
     "@stu/state-file": ["@stu/state-file@workspace:adapters/state-file"],
+
+    "@stu/watch": ["@stu/watch@workspace:apps/watch"],
 
     "@stylistic/eslint-plugin": ["@stylistic/eslint-plugin@5.10.0", "", { "dependencies": { "@eslint-community/eslint-utils": "^4.9.1", "@typescript-eslint/types": "^8.56.0", "eslint-visitor-keys": "^4.2.1", "espree": "^10.4.0", "estraverse": "^5.3.0", "picomatch": "^4.0.3" }, "peerDependencies": { "eslint": "^9.0.0 || ^10.0.0" } }, "sha512-nPK52ZHvot8Ju/0A4ucSX1dcPV2/1clx0kLcH5wDmrE4naKso7TUC/voUyU1O9OTKTrR6MYip6LP0ogEMQ9jPQ=="],
 

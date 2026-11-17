@@ -11,8 +11,5 @@
   },
   "dependencies": {
     "@stu/model": "workspace:*"
-  },
-  "devDependencies": {
-    "@zgeoff/testing": "catalog:"
   }
 }

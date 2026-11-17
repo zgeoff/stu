@@ -13,8 +13,5 @@
     "@atcx/contract": "catalog:",
     "@stu/model": "workspace:*",
     "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@zgeoff/testing": "catalog:"
   }
 }
