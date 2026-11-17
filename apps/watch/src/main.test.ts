@@ -26,6 +26,8 @@ async function setupTest() {
         unknownLost: [],
         unknownStored: [],
         dropFirstReply: [],
+        refusedKeys: {},
+        messageReadRefusal: null,
       });
 
       onTestFinished(() => atc.stop());

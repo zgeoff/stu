@@ -20,6 +20,12 @@ export interface StubAtcRules {
 
   // stored on the first send, whose reply the stub drops by closing the connection
   readonly dropFirstReply: readonly number[];
+
+  // answered on every send with the error code given, with no data and no message stored
+  readonly refusedKeys: Readonly<Record<number, string>>;
+
+  // the error code every /message/get answers with; null: answer each read from the messages held
+  readonly messageReadRefusal: string | null;
 }
 
 export interface StoredMessage {
@@ -70,6 +76,13 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
 
     const order = keys.indexOf(message.idempotencyKey);
     const held = stored.find((entry) => entry.idempotencyKey === message.idempotencyKey);
+    const refusal = rules.refusedKeys[order];
+
+    if (refusal !== undefined) {
+      writeRefusal(socket, id, refusal, {});
+
+      return;
+    }
 
     if (rules.unknownLost.includes(order)) {
       writeRefusal(socket, id, 'outcome_unknown', { effectRef: `m-lost-${order}` });
@@ -133,6 +146,8 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
 
     if (path === '/session/message') {
       answerMessage(socket, id, input);
+    } else if (path === '/message/get' && rules.messageReadRefusal !== null) {
+      writeRefusal(socket, id, rules.messageReadRefusal, {});
     } else if (path === '/message/get') {
       const found = stored.find((entry) => entry.id === input['message']);
 

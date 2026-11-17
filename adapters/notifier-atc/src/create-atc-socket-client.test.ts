@@ -35,6 +35,8 @@ test('it says hello with its client name and protocol 14 before the call', async
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   await ctx.createClient([atc.socketPath]).write('/session/message', {
@@ -57,6 +59,8 @@ test('it retries once with the daemon protocol that a protocol_mismatch refusal 
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   await ctx.createClient([atc.socketPath]).write('/session/message', {
@@ -80,6 +84,8 @@ test('it rejects with the atc code of a refusal', async () => {
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const read = ctx.createClient([atc.socketPath]).read('/message/get', { message: 'm-9' });
@@ -95,6 +101,8 @@ test('it rejects when atc closes the connection before it answers', async () => 
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const write = ctx.createClient([atc.socketPath]).write('/session/message', {
@@ -140,6 +148,8 @@ test('it calls the daemon at the next path when none listens at the first', asyn
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   await ctx
@@ -168,6 +178,8 @@ test('it calls the daemon at the next path when the first holds a socket file no
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   await ctx.createClient([stale, atc.socketPath]).write('/session/message', {
@@ -190,6 +202,8 @@ test('it rejects without trying the next path when the connect fails for another
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const overlong = join(ctx.folder, 'x'.repeat(200), 'atc-daemon.sock');

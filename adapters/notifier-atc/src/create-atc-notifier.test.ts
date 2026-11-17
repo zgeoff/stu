@@ -5,7 +5,6 @@ import { join } from 'node:path';
 import { runWatch } from '@stu/faults';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
-import { AtcError } from './atc-error.ts';
 import { createAtcNotifier } from './create-atc-notifier.ts';
 import { createAtcSocketClient } from './create-atc-socket-client.ts';
 import { startStubAtc } from './test-utils/start-stub-atc.ts';
@@ -39,16 +38,6 @@ async function setupTest() {
         from: 'stu-watch',
       }),
 
-    // A notifier on a client that refuses every send with sendError, and every read with readError.
-    createRefusedNotifier: (sendError: AtcError, readError: AtcError) =>
-      createAtcNotifier({
-        client: {
-          write: () => Promise.reject(sendError),
-          read: () => Promise.reject(readError),
-        },
-        session: 's-stu',
-        from: 'stu-watch',
-      }),
     runAt: (at: string, checks: readonly CheckConfig[], kinds: KindTable, notifier: Notifier) =>
       runWatch({
         checks,
@@ -73,6 +62,8 @@ test('it sends as a local program: a hello name outside atc/, and a message with
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const outcome = await ctx
@@ -104,6 +95,8 @@ test('it settles outcome_unknown as sent through /message/get when atc holds the
     unknownLost: [],
     unknownStored: [0],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const outcome = await ctx
@@ -124,6 +117,8 @@ test('it answers rekey for outcome_unknown when atc holds no message under the e
     unknownLost: [0],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const outcome = await ctx
@@ -144,6 +139,8 @@ test('it answers rekey for idempotency_conflict', async () => {
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const message = {
@@ -179,11 +176,17 @@ test('it answers failed with the cause when atc cannot be reached', async () => 
 test('it answers failed for outcome_unknown without an effectRef', async () => {
   const ctx = await setupTest();
 
+  const atc = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: { 0: 'outcome_unknown' },
+    messageReadRefusal: null,
+  });
+
   const outcome = await ctx
-    .createRefusedNotifier(
-      new AtcError('outcome_unknown', 'outcome unknown'),
-      new AtcError('bad_args', 'no such message'),
-    )
+    .createNotifier(atc.socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
   expect(outcome).toStrictEqual({ kind: 'failed', reason: 'outcome_unknown without an effectRef' });
@@ -192,11 +195,17 @@ test('it answers failed for outcome_unknown without an effectRef', async () => {
 test('it answers failed for outcome_unknown when the message read fails for another cause', async () => {
   const ctx = await setupTest();
 
+  const atc = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [0],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: 'internal_error',
+  });
+
   const outcome = await ctx
-    .createRefusedNotifier(
-      new AtcError('outcome_unknown', 'outcome unknown', { effectRef: 'm-1' }),
-      new AtcError('daemon_busy', 'busy'),
-    )
+    .createNotifier(atc.socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
   expect(outcome).toStrictEqual({
@@ -208,11 +217,17 @@ test('it answers failed for outcome_unknown when the message read fails for anot
 test('it answers failed with the code of any other atc refusal', async () => {
   const ctx = await setupTest();
 
+  const atc = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: { 0: 'unknown_session' },
+    messageReadRefusal: null,
+  });
+
   const outcome = await ctx
-    .createRefusedNotifier(
-      new AtcError('unknown_session', 'no such session'),
-      new AtcError('bad_args', 'no such message'),
-    )
+    .createNotifier(atc.socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
   expect(outcome).toStrictEqual({ kind: 'failed', reason: 'unknown_session' });
@@ -226,6 +241,8 @@ test('it resends a recovery whose reply was lost under its first key, then sends
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [1],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const notifier = ctx.createNotifier(atc.socketPath, 's-stu');
@@ -260,6 +277,8 @@ test('it leaves stu one fault message and one recovery when the open reply was l
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const notifier = ctx.createNotifier(atc.socketPath, 's-stu');
@@ -283,6 +302,8 @@ test('it stores one message when the first key stays outcome_unknown and the rep
     unknownLost: [0],
     unknownStored: [],
     dropFirstReply: [1],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const notifier = ctx.createNotifier(atc.socketPath, 's-stu');
@@ -308,6 +329,8 @@ test('it sends stu one message under a new key when atc.session changed after a 
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   const fault = { key: 'a:22', line: 'no answer from a:22' };

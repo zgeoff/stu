@@ -17,6 +17,8 @@ async function setupTest() {
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   onTestFinished(() => atc.stop());
@@ -117,6 +119,8 @@ test('it stores a message whose reply it drops, and closes the connection withou
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
+    refusedKeys: {},
+    messageReadRefusal: null,
   });
 
   onTestFinished(() => atc.stop());
@@ -130,4 +134,69 @@ test('it stores a message whose reply it drops, and closes the connection withou
   await once(socket, 'close');
 
   expect(atc.stored).toHaveLength(1);
+});
+
+test('it refuses a key with the code its rules give, and stores nothing', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
+
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+
+  const atc = await startStubAtc(folder, {
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: { 0: 'unknown_session' },
+    messageReadRefusal: null,
+  });
+
+  onTestFinished(() => atc.stop());
+
+  const socket = createConnection({ path: atc.socketPath });
+
+  onTestFinished(() => socket.destroy());
+
+  const lines = createInterface({ input: socket })[Symbol.asyncIterator]();
+
+  socket.write(
+    '{"i":"1","p":{"u":"/session/message","b":{"json":{"session":"s-stu","text":"FAULT a","from":"stu-watch","idempotencyKey":"k-1"}}}}\n',
+  );
+
+  const refusal = await lines.next();
+
+  expect([refusal.value, atc.stored]).toStrictEqual([
+    expect.stringContaining(
+      '"code":"unknown_session","status":400,"message":"stub atc: unknown_session","data":{}',
+    ),
+    [],
+  ]);
+});
+
+test('it answers every message read with the refusal its rules give', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
+
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+
+  const atc = await startStubAtc(folder, {
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: 'internal_error',
+  });
+
+  onTestFinished(() => atc.stop());
+
+  const socket = createConnection({ path: atc.socketPath });
+
+  onTestFinished(() => socket.destroy());
+
+  const lines = createInterface({ input: socket })[Symbol.asyncIterator]();
+
+  socket.write('{"i":"1","p":{"u":"/message/get","b":{"json":{"message":"m-1"}}}}\n');
+
+  const refusal = await lines.next();
+
+  expect(refusal.value).toInclude('"code":"internal_error"');
 });
