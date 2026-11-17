@@ -2,9 +2,8 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { WatchConfig } from '@stu/model';
 import { readWatchConfig } from './read-watch-config.ts';
-import { seedWatchConfig } from './test-utils/seed-watch-config.ts';
+import { buildSeeder } from './test-utils/build-seeder.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -13,9 +12,7 @@ async function setupTest() {
 
   return {
     folder,
-    seed: {
-      watchConfig: (input: Partial<WatchConfig>) => seedWatchConfig({ folder }, input),
-    },
+    seed: buildSeeder({ folder, stateDir: join(folder, 'atc-state') }),
   };
 }
 

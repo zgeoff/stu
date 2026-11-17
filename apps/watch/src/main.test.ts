@@ -2,12 +2,9 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { WatchConfig } from '@stu/model';
-import type { DaemonRecord } from '@stu/notifier-atc/test-utils/build-mock-daemon-record';
-import { seedDaemonRecord } from '@stu/notifier-atc/test-utils/seed-daemon-record';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { startStubTCP } from '@stu/probe-net/test-utils/start-stub-tcp';
-import { seedWatchConfig } from './test-utils/seed-watch-config.ts';
+import { buildSeeder } from './test-utils/build-seeder.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -38,10 +35,7 @@ async function setupTest() {
 
       return atc;
     },
-    seed: {
-      watchConfig: (input: Partial<WatchConfig>) => seedWatchConfig({ folder }, input),
-      daemonRecord: (input: Partial<DaemonRecord>) => seedDaemonRecord({ stateDir }, input),
-    },
+    seed: buildSeeder({ folder, stateDir }),
 
     // the environment a systemd user unit gets: the manager's, with no ATC_* variable and no
     // XDG_* variable beyond XDG_RUNTIME_DIR

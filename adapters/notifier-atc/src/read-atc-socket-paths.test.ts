@@ -3,8 +3,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readAtcSocketPaths } from './read-atc-socket-paths.ts';
-import type { DaemonRecord } from './test-utils/build-mock-daemon-record.ts';
-import { seedDaemonRecord } from './test-utils/seed-daemon-record.ts';
+import { buildSeeder } from './test-utils/build-seeder.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -21,9 +20,7 @@ async function setupTest() {
     home,
     runtimeDir,
     stateDir,
-    seed: {
-      daemonRecord: (input: Partial<DaemonRecord>) => seedDaemonRecord({ stateDir }, input),
-    },
+    seed: buildSeeder({ stateDir }),
 
     // a record atc's schema would refuse, which no seed writes
     writeBrokenDaemonRecord: (text: string) => writeFile(join(stateDir, 'daemon.json'), text),

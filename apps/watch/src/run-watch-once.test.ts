@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
-import type { Fault, WatchConfig } from '@stu/model';
+import type { Fault } from '@stu/model';
 import { runWatchOnce } from './run-watch-once.ts';
-import { seedWatchConfig } from './test-utils/seed-watch-config.ts';
+import { buildSeeder } from './test-utils/build-seeder.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -17,9 +17,7 @@ async function setupTest() {
 
   return {
     notifier,
-    seed: {
-      watchConfig: (input: Partial<WatchConfig>) => seedWatchConfig({ folder }, input),
-    },
+    seed: buildSeeder({ folder, stateDir: join(folder, 'atc-state') }),
     runAt: (configPath: string, at: string, faults: readonly Fault[]) =>
       runWatchOnce({
         configPath,
