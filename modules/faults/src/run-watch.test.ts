@@ -7,6 +7,7 @@ import type {
   Reported,
   SendOutcome,
 } from '@stu/model';
+import { buildSendKey } from './build-send-key.ts';
 import { runWatch } from './run-watch.ts';
 import { buildStubNotifier } from './test-utils/build-stub-notifier.ts';
 import { makeStubKind } from './test-utils/make-stub-kind.ts';
@@ -81,7 +82,7 @@ test('it sends the recovery under a key of its own, not the open message key', a
 
   const [open, recovery] = ctx.notifier.sent;
 
-  expect(recovery?.idempotencyKey === open?.idempotencyKey).toBeFalse();
+  expect(recovery?.idempotencyKey).not.toBe(open?.idempotencyKey);
 });
 
 test('it keeps no send key for a fault whose open atc took', async () => {
@@ -317,6 +318,36 @@ test('it saves a new send key before the send that uses it when atc answers reke
   ]);
 });
 
+test('it saves the third key and keeps the send owed when atc answers rekey twice in a row', async () => {
+  const ctx = setupTest();
+
+  const notifier = buildStubNotifier([
+    { kind: 'rekey', reason: 'outcome_unknown' },
+    { kind: 'rekey', reason: 'idempotency_conflict' },
+  ]);
+
+  const kinds = { tcp: makeStubKind([[{ key: 'a:22', line: 'no answer from a:22' }]]) };
+
+  const result = await ctx.runAt(
+    '2026-11-17T08:00:00Z',
+    [{ id: 'tunnel', kind: 'tcp' }],
+    kinds,
+    notifier,
+  );
+
+  const firstKey = buildSendKey('tunnel:a:22', 'open', '2026-11-17T08:00:00.000Z');
+
+  expect([
+    notifier.sent.map((message) => message.idempotencyKey),
+    ctx.file.state.faults['tunnel:a:22']?.sendKey,
+    result.failures,
+  ]).toStrictEqual([
+    [firstKey, `${firstKey}:2`],
+    `${firstKey}:3`,
+    [{ key: 'tunnel:a:22', reason: 'idempotency_conflict' }],
+  ]);
+});
+
 test('it keeps owing an open whose send failed when the fault clears, then sends the open and the recovery', async () => {
   const ctx = setupTest();
   const notifier = buildStubNotifier([{ kind: 'failed', reason: 'reply lost' }, { kind: 'sent' }]);
@@ -352,10 +383,11 @@ test('it resends an owed recovery before it opens the fault that came back, unde
 
   const [open, recovery, recoveryResend, reopen] = notifier.sent;
 
-  expect([
-    notifier.sent.length,
-    recoveryResend,
-    reopen?.text,
-    reopen?.idempotencyKey === open?.idempotencyKey,
-  ]).toStrictEqual([4, recovery, 'FAULT tunnel:a:22: no answer from a:22', false]);
+  expect(reopen?.idempotencyKey).not.toBe(open?.idempotencyKey);
+
+  expect([notifier.sent.length, recoveryResend, reopen?.text]).toStrictEqual([
+    4,
+    recovery,
+    'FAULT tunnel:a:22: no answer from a:22',
+  ]);
 });

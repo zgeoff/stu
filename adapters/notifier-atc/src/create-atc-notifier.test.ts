@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { runWatch } from '@stu/faults';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
+import { AtcError } from './atc-error.ts';
 import { createAtcNotifier } from './create-atc-notifier.ts';
 import { createAtcSocketClient } from './create-atc-socket-client.ts';
 import { startStubAtc } from './test-utils/start-stub-atc.ts';
@@ -35,6 +36,17 @@ async function setupTest() {
           timeoutMs: 1000,
         }),
         session,
+        from: 'stu-watch',
+      }),
+
+    // A notifier on a client that refuses every send with sendError, and every read with readError.
+    createRefusedNotifier: (sendError: AtcError, readError: AtcError) =>
+      createAtcNotifier({
+        client: {
+          write: () => Promise.reject(sendError),
+          read: () => Promise.reject(readError),
+        },
+        session: 's-stu',
         from: 'stu-watch',
       }),
     runAt: (at: string, checks: readonly CheckConfig[], kinds: KindTable, notifier: Notifier) =>
@@ -162,6 +174,48 @@ test('it answers failed with the cause when atc cannot be reached', async () => 
     kind: 'failed',
     reason: `atc send failed: no atc daemon listens at ${socketPath}`,
   });
+});
+
+test('it answers failed for outcome_unknown without an effectRef', async () => {
+  const ctx = await setupTest();
+
+  const outcome = await ctx
+    .createRefusedNotifier(
+      new AtcError('outcome_unknown', 'outcome unknown'),
+      new AtcError('bad_args', 'no such message'),
+    )
+    .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
+
+  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'outcome_unknown without an effectRef' });
+});
+
+test('it answers failed for outcome_unknown when the message read fails for another cause', async () => {
+  const ctx = await setupTest();
+
+  const outcome = await ctx
+    .createRefusedNotifier(
+      new AtcError('outcome_unknown', 'outcome unknown', { effectRef: 'm-1' }),
+      new AtcError('daemon_busy', 'busy'),
+    )
+    .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
+
+  expect(outcome).toStrictEqual({
+    kind: 'failed',
+    reason: 'outcome_unknown, and the message read failed',
+  });
+});
+
+test('it answers failed with the code of any other atc refusal', async () => {
+  const ctx = await setupTest();
+
+  const outcome = await ctx
+    .createRefusedNotifier(
+      new AtcError('unknown_session', 'no such session'),
+      new AtcError('bad_args', 'no such message'),
+    )
+    .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
+
+  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'unknown_session' });
 });
 
 test('it resends a recovery whose reply was lost under its first key, then sends the fault that came back', async () => {
