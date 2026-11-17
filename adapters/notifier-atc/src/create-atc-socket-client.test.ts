@@ -138,7 +138,9 @@ test.each([
   const ctx = await setupTest();
 
   const broken = createServer((socket) => {
-    socket.on('data', () => socket.write(line));
+    socket.on('data', () => {
+      socket.write(line);
+    });
   });
 
   const socketPath = join(ctx.folder, 'broken.sock');
