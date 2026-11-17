@@ -33,7 +33,6 @@ export function moveFault(reported: Reported, key: string, move: FaultMove): Rep
           since: opening.since,
           owed: 'open' as const,
           sendKey: buildSendKey(key, 'open', opening.since),
-          stuKnows: false,
         },
       },
     }))
@@ -41,7 +40,7 @@ export function moveFault(reported: Reported, key: string, move: FaultMove): Rep
       ...reported,
       faults: {
         ...reported.faults,
-        [key]: { ...requireHeld(held), owed: null, sendKey: null, stuKnows: true },
+        [key]: { ...requireHeld(held), owed: null, sendKey: null },
       },
     }))
     .with({ to: 'clearing' }, () => {

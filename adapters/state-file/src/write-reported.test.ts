@@ -26,7 +26,6 @@ test('it writes a file that reads back as the same reported state', async () => 
         since: '2026-11-17T08:00:00.000Z',
         owed: 'open' as const,
         sendKey: 'stu-watch:0f3a',
-        stuKnows: false,
       },
     },
     lastRun: { tunnel: '2026-11-17T08:00:00.000Z' },

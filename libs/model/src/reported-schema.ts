@@ -8,9 +8,6 @@ const FAULT_FIELDS = {
 
   // ISO time the fault opened; part of its idempotency keys
   since: z.iso.datetime(),
-
-  // true once stu has the open message
-  stuKnows: z.boolean(),
 };
 
 // owed: the send this key still owes stu, with its idempotency key, stored before its first try.
