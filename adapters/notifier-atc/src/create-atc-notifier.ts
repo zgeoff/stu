@@ -12,8 +12,8 @@ export interface AtcNotifierOptions {
   readonly from: string;
 }
 
-// atc never runs a key again once it answers outcome_unknown or idempotency_conflict, so a send
-// atc holds no message for needs a new key. Every other failure settles on a resend under its key.
+// atc never runs a key again after outcome_unknown or idempotency_conflict. So after a conflict,
+// or an outcome_unknown whose message atc does not hold, the send goes again under a new key.
 export function createAtcNotifier(options: AtcNotifierOptions): Notifier {
   return {
     send: async (message) => {
