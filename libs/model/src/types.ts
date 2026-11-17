@@ -52,9 +52,22 @@ export interface HostPort {
 // The atc procedures that read and change nothing.
 export type AtcReadPath = '/session/list' | '/session/get' | '/message/get';
 
+// unreached: no daemon answered, so the call may not have reached atc at all
+export type AtcAnswer =
+  | { readonly kind: 'answered'; readonly body: unknown }
+  | {
+      readonly kind: 'refused';
+      readonly code: string;
+      readonly data: Readonly<Record<string, unknown>>;
+    }
+  | { readonly kind: 'unreached'; readonly reason: string };
+
 // Read-only access to atc: a package that holds only this port cannot send a message.
 export interface AtcReader {
-  readonly read: (path: AtcReadPath, input: Readonly<Record<string, unknown>>) => Promise<unknown>;
+  readonly read: (
+    path: AtcReadPath,
+    input: Readonly<Record<string, unknown>>,
+  ) => Promise<AtcAnswer>;
 }
 
 export interface SessionSnapshot {

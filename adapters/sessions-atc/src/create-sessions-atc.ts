@@ -1,5 +1,6 @@
 import { SESSION_DESCRIPTOR_SCHEMA } from '@atcx/contract';
-import type { AtcReader, SessionSnapshot, SessionsPort } from '@stu/model';
+import type { AtcAnswer, AtcReader, SessionSnapshot, SessionsPort } from '@stu/model';
+import { match } from 'ts-pattern';
 import { z } from 'zod';
 
 // Only the fields the session kinds read, so a change to any other field leaves them working.
@@ -18,7 +19,9 @@ export function createSessionsAtc(atc: AtcReader): SessionsPort {
     listSessions: async () => {
       const listAnswer = await atc.read('/session/list', {});
 
-      const listed = SESSION_LIST_SCHEMA.parse(listAnswer).sessions;
+      const listed = SESSION_LIST_SCHEMA.parse(
+        parseAnswerBody('/session/list', listAnswer),
+      ).sessions;
 
       return Promise.all(
         listed.map(async (session): Promise<SessionSnapshot> => {
@@ -30,10 +33,24 @@ export function createSessionsAtc(atc: AtcReader): SessionsPort {
             state: session.state,
             desired: session.lifecycle.desired,
             harness: session.lifecycle.harness,
-            lastActivityAt: SESSION_GET_SCHEMA.parse(getAnswer).lastActivityAt,
+            lastActivityAt: SESSION_GET_SCHEMA.parse(parseAnswerBody('/session/get', getAnswer))
+              .lastActivityAt,
           };
         }),
       );
     },
   };
+}
+
+// A kind that cannot read atc cannot look, so it throws, and the run opens its cannot-run fault.
+function parseAnswerBody(path: string, answer: AtcAnswer): unknown {
+  return match(answer)
+    .with({ kind: 'answered' }, (answered) => answered.body)
+    .with({ kind: 'refused' }, (refused) => {
+      throw new Error(`atc refused ${path}: ${refused.code}`);
+    })
+    .with({ kind: 'unreached' }, (unreached) => {
+      throw new Error(`atc read ${path} failed: ${unreached.reason}`);
+    })
+    .exhaustive();
 }

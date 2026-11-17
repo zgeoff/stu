@@ -6,7 +6,7 @@ test('it answers /session/list with the list answer', async () => {
 
   const answer = await reader.read('/session/list', {});
 
-  expect(answer).toStrictEqual({ sessions: [] });
+  expect(answer).toStrictEqual({ kind: 'answered', body: { sessions: [] } });
 });
 
 test('it answers /session/get with the answer recorded for the session', async () => {
@@ -14,7 +14,7 @@ test('it answers /session/get with the answer recorded for the session', async (
 
   const answer = await reader.read('/session/get', { session: 's1-k9q1r' });
 
-  expect(answer).toStrictEqual({ lastActivityAt: 5 });
+  expect(answer).toStrictEqual({ kind: 'answered', body: { lastActivityAt: 5 } });
 });
 
 test('it rejects a read with no recorded answer', () => {

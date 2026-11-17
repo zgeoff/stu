@@ -58,6 +58,7 @@
       "dependencies": {
         "@atcx/contract": "catalog:",
         "@stu/model": "workspace:*",
+        "ts-pattern": "catalog:",
         "zod": "catalog:",
       },
     },

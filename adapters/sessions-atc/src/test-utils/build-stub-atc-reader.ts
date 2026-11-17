@@ -13,7 +13,7 @@ export function buildStubAtcReader(
 
       return answer === undefined
         ? Promise.reject(new Error(`no recorded answer for ${path} ${session}`))
-        : Promise.resolve(answer);
+        : Promise.resolve({ kind: 'answered', body: answer });
     },
   };
 }

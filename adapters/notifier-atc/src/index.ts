@@ -1,4 +1,3 @@
-export { AtcError } from './atc-error.ts';
 export { createAtcNotifier } from './create-atc-notifier.ts';
 export type { AtcNotifierOptions } from './create-atc-notifier.ts';
 export { createAtcSocketClient } from './create-atc-socket-client.ts';

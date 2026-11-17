@@ -1,4 +1,4 @@
-import type { AtcReader } from '@stu/model';
+import type { AtcAnswer, AtcReader } from '@stu/model';
 
 export type AtcWritePath = '/session/message';
 
@@ -7,7 +7,7 @@ export interface AtcSocketClient extends AtcReader {
   readonly write: (
     path: AtcWritePath,
     input: Readonly<Record<string, unknown>>,
-  ) => Promise<unknown>;
+  ) => Promise<AtcAnswer>;
 }
 
 export interface AtcSocketOptions {

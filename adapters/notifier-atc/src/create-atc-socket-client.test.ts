@@ -74,7 +74,7 @@ test('it retries once with the daemon protocol that a protocol_mismatch refusal 
   expect(atc.stored).toHaveLength(1);
 });
 
-test('it rejects with the atc code of a refusal', async () => {
+test('it answers refused with the atc code and data of a refusal', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
@@ -86,12 +86,12 @@ test('it rejects with the atc code of a refusal', async () => {
     messageReadRefusal: null,
   });
 
-  const read = ctx.createClient([atc.socketPath]).read('/message/get', { message: 'm-9' });
+  const answer = await ctx.createClient([atc.socketPath]).read('/message/get', { message: 'm-9' });
 
-  expect(read).rejects.toMatchObject({ code: 'bad_args' });
+  expect(answer).toStrictEqual({ kind: 'refused', code: 'bad_args', data: {} });
 });
 
-test('it rejects when atc closes the connection before it answers', async () => {
+test('it answers unreached when atc closes the connection before it answers', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
@@ -103,17 +103,20 @@ test('it rejects when atc closes the connection before it answers', async () => 
     messageReadRefusal: null,
   });
 
-  const write = ctx.createClient([atc.socketPath]).write('/session/message', {
+  const answer = await ctx.createClient([atc.socketPath]).write('/session/message', {
     session: 's-stu',
     text: 'hi',
     from: 'stu-watch',
     idempotencyKey: 'k1',
   });
 
-  expect(write).rejects.toThrow('closed the connection before it answered');
+  expect(answer).toStrictEqual({
+    kind: 'unreached',
+    reason: 'atc closed the connection before it answered',
+  });
 });
 
-test('it rejects when atc gives no answer within the timeout', async () => {
+test('it answers unreached when atc gives no answer within the timeout', async () => {
   const ctx = await setupTest();
 
   const silent = createServer(() => {});
@@ -123,19 +126,23 @@ test('it rejects when atc gives no answer within the timeout', async () => {
 
   onTestFinished(() => silent.close());
 
-  const read = ctx.createClient([socketPath]).read('/session/list', {});
+  const answer = await ctx.createClient([socketPath]).read('/session/list', {});
 
-  expect(read).rejects.toThrow('atc gave no answer in 200 ms');
+  expect(answer).toStrictEqual({ kind: 'unreached', reason: 'atc gave no answer in 200 ms' });
 });
 
-test('it rejects with each path it tried when no daemon listens at any of them', async () => {
+test('it answers unreached with each path it tried when no daemon listens at any of them', async () => {
   const ctx = await setupTest();
 
   const first = join(ctx.folder, 'run', 'atc-daemon.sock');
   const second = join(ctx.folder, 'state', 'atc-daemon.sock');
-  const read = ctx.createClient([first, second]).read('/session/list', {});
 
-  expect(read).rejects.toThrow(`no atc daemon listens at ${first} or ${second}`);
+  const answer = await ctx.createClient([first, second]).read('/session/list', {});
+
+  expect(answer).toStrictEqual({
+    kind: 'unreached',
+    reason: `no atc daemon listens at ${first} or ${second}`,
+  });
 });
 
 test('it calls the daemon at the next path when none listens at the first', async () => {
