@@ -30,6 +30,7 @@ const result = await runWatchOnce({
     readNowMs: () => Date.now(),
   }),
   createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),
+  readNowMs: () => Date.now(),
 });
 
 if (result.sent > 0 || result.failures.length > 0) {

@@ -19,7 +19,9 @@ holds no `:`, so the bare id is free for the check's own cannot-run fault: a che
 runs past its timeout opens that fault, and its next good run clears it. A check that throws clears
 none of its other faults, because a check that cannot look has not seen them recover. The program
 exits when the run ends, which stops a probe still running past its timeout, and the service stops a
-run that outlives its own time limit, so one hung probe never holds back the next run.
+run that outlives its own time limit, so one hung probe never holds back the next run. No send
+starts once the run is past its send window: a send it skips stays owed for the next run, so a hung
+atc still leaves the run time to save what it found.
 
 A check with `everyMin` runs when that many minutes have passed since its last run, less a few
 seconds of slack, so a timer that fires a little early still runs it. A run that throws still counts

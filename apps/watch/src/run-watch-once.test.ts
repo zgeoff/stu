@@ -32,6 +32,7 @@ async function setupTest() {
         kinds: { tcp: makeStubKind([faults]) },
         at: Temporal.Instant.from(at),
         createNotifier: () => notifier,
+        readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
       }),
   };
 }
