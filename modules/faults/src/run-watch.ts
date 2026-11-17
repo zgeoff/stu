@@ -1,12 +1,11 @@
 import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
-import { buildNextSendKey } from './build-send-key.ts';
 import { formatFaultMessage } from './format-fault-message.ts';
 import { isDue } from './is-due.ts';
-import { moveFault } from './move-fault.ts';
 import { pickChanges } from './pick-changes.ts';
 import type { CheckOutcome } from './pick-changes.ts';
+import { pickSendStep } from './pick-send-step.ts';
 
 export interface WatchRun {
   readonly checks: readonly CheckConfig[];
@@ -101,8 +100,8 @@ function collectOwedKeys(reported: Reported): string[] {
 
 const MAX_TRIES = 2;
 
-// Sends what the key owes under its stored key. When atc will never run that key, the next key is
-// saved before the send that uses it, so a lost reply to that send replays on the next run.
+// Sends what the key owes under its stored key, then saves what pickSendStep decides. A new send
+// key is saved before the send that uses it, so a lost reply to that send replays on the next run.
 async function writeOwedMessage(
   run: WatchRun,
   ledger: Ledger,
@@ -113,38 +112,38 @@ async function writeOwedMessage(
 
   invariant(fault !== undefined && fault.sendKey !== null, `fault ${key} owes no send`);
 
-  const sendKey = fault.sendKey;
-
   const outcome = await run.notifier.send({
     text: formatFaultMessage(key, fault),
-    idempotencyKey: sendKey,
+    idempotencyKey: fault.sendKey,
   });
 
-  await match(outcome)
-    .with({ kind: 'sent' }, async () => {
-      ledger.state = moveFault(ledger.state, key, { to: fault.owed === 'open' ? 'open' : 'gone' });
+  const step = pickSendStep(ledger.state, key, outcome, triesLeft);
+
+  await match(step)
+    .with({ kind: 'sent' }, async (sent) => {
+      ledger.state = sent.state;
       ledger.sent += 1;
 
-      await run.writeReported(ledger.state);
+      await run.writeReported(sent.state);
     })
     .with({ kind: 'failed' }, (failed) => {
       ledger.failures.push({ key, reason: failed.reason });
 
       return Promise.resolve();
     })
-    .with({ kind: 'rekey' }, async (rekey) => {
-      ledger.state = {
-        ...ledger.state,
-        faults: { ...ledger.state.faults, [key]: { ...fault, sendKey: buildNextSendKey(sendKey) } },
-      };
+    .with({ kind: 'resend' }, async (resend) => {
+      ledger.state = resend.state;
 
-      await run.writeReported(ledger.state);
+      await run.writeReported(resend.state);
 
-      if (triesLeft > 1) {
-        await writeOwedMessage(run, ledger, key, triesLeft - 1);
-      } else {
-        ledger.failures.push({ key, reason: rekey.reason });
-      }
+      await writeOwedMessage(run, ledger, key, triesLeft - 1);
+    })
+    .with({ kind: 'gave-up' }, async (gaveUp) => {
+      ledger.state = gaveUp.state;
+
+      ledger.failures.push({ key, reason: gaveUp.reason });
+
+      await run.writeReported(gaveUp.state);
     })
     .exhaustive();
 }
