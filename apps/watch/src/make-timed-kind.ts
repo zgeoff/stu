@@ -15,6 +15,8 @@ export function makeTimedKind(kind: Kind, timeoutMs: number): Kind {
   };
 }
 
+// node's sleep, not Bun.sleep: it takes an AbortSignal, so a kind that answers in time leaves no
+// timer running.
 async function rejectAfter(timeoutMs: number, signal: AbortSignal): Promise<readonly Fault[]> {
   await sleep(timeoutMs, undefined, { signal });
 
