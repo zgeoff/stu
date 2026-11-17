@@ -49,9 +49,9 @@ the open, even when it clears: the open may have reached stu with its reply lost
 an open stu never got would confuse it. Once atc takes the open, the recovery follows. A fault that
 comes back after its recovery was sent opens again, with a new open time.
 
-The run saves the file before it sends anything, and again after each send that atc takes. A run
-killed between a send and its save leaves the send owed, and the next run's resend settles it, as
-the next section describes.
+Every send key is in the file before its first try, and the run saves the file again after each send
+that atc takes. A run killed between a send and its save leaves the send owed, and the next run's
+resend settles it, as the next section describes.
 
 ## Sending each change once
 
