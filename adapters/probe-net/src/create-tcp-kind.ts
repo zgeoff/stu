@@ -6,7 +6,7 @@ const TCP_PARAMS = z.object({
   port: z.number().int().min(1).max(65_535),
 });
 
-export function createTcpKind(net: NetPort): Kind {
+export function createTCPKind(net: NetPort): Kind {
   return async (params) => {
     const target = TCP_PARAMS.parse(params);
     const address = `${target.host}:${target.port}`;

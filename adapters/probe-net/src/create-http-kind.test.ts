@@ -1,11 +1,11 @@
 import { expect, mock, test } from 'bun:test';
-import type { HttpAnswer } from '@stu/model';
-import { createHttpKind } from './create-http-kind.ts';
+import type { HTTPAnswer } from '@stu/model';
+import { createHTTPKind } from './create-http-kind.ts';
 
 function setupTest() {
   return {
-    createKind: (answer: HttpAnswer) =>
-      createHttpKind({
+    createKind: (answer: HTTPAnswer) =>
+      createHTTPKind({
         probeTCP: mock(() => Promise.reject(new Error('the http kind opens no tcp'))),
         readHTTP: mock(() => Promise.resolve(answer)),
       }),

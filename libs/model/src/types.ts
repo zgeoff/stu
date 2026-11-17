@@ -28,7 +28,7 @@ export interface Notifier {
   readonly send: (message: OwedMessage) => Promise<SendOutcome>;
 }
 
-export type HttpAnswer =
+export type HTTPAnswer =
   | { readonly kind: 'answered'; readonly status: number }
   | { readonly kind: 'unreached'; readonly reason: string };
 
@@ -38,7 +38,7 @@ export interface ProbeOptions {
 
 export interface NetPort {
   readonly probeTCP: (host: string, port: number, options: ProbeOptions) => Promise<boolean>;
-  readonly readHTTP: (url: string, options: ProbeOptions) => Promise<HttpAnswer>;
+  readonly readHTTP: (url: string, options: ProbeOptions) => Promise<HTTPAnswer>;
 }
 
 export interface HostPort {

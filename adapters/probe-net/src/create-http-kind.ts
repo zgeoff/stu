@@ -9,7 +9,7 @@ const HTTP_PARAMS = z.object({
   status: z.number().int().optional(),
 });
 
-export function createHttpKind(net: NetPort): Kind {
+export function createHTTPKind(net: NetPort): Kind {
   return async (params) => {
     const target = HTTP_PARAMS.parse(params);
     const url = target.url;
