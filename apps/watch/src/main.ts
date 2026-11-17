@@ -1,3 +1,4 @@
+import { parseArgs } from 'node:util';
 import { createHostLinux } from '@stu/host-linux';
 import { createAtcNotifier, createAtcSocketClient, readAtcSocketPaths } from '@stu/notifier-atc';
 import { createProbeNet } from '@stu/probe-net';
@@ -7,7 +8,7 @@ import { buildKinds } from './build-kinds.ts';
 import { runWatchOnce } from './run-watch-once.ts';
 
 // The systemd user timer runs `bun apps/watch/src/main.ts <config path>` once a minute.
-const configPath = process.argv.at(2);
+const [configPath] = parseArgs({ args: Bun.argv.slice(2), allowPositionals: true }).positionals;
 
 if (configPath === undefined) {
   console.error('usage: bun apps/watch/src/main.ts <config path>');
