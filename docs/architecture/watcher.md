@@ -64,12 +64,13 @@ the fault opened. The engine stores the key in the reported file before the firs
 key once and answers a repeat with the first send's message, so a resend of a message that reached
 stu adds nothing.
 
-atc refuses to run a key again in two cases, and in both the watcher needs a new key:
+atc refuses to run a key again in two cases:
 
 - atc answers `outcome_unknown` when it cannot tell whether the first send ran. The notifier asks
-  atc for the message whose id the error holds. When atc holds it, the send counts as taken.
+  atc for the message whose id the error holds. When atc holds it, the send counts as taken. When
+  atc answers that it holds no such message, the watcher needs a new key.
 - atc answers `idempotency_conflict` when a resend differs from the first send, such as after the
-  owner changes the session in the config.
+  owner changes the session in the config. The watcher needs a new key.
 
 For a send that needs a new key, the engine adds a counter to the old key and saves the file before
 it sends again. A lost reply to that send then replays on the next run, and stu still gets one
