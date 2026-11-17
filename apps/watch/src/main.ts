@@ -25,7 +25,7 @@ const result = await runWatchOnce({
   configPath,
   at: Temporal.Now.instant(),
   kinds: buildKinds({
-    host: createHostLinux(),
+    host: createHostLinux({ procRoot: '/proc' }),
     net: createProbeNet(),
     sessions: createSessionsAtc(atc),
     readNowMs: () => Date.now(),
