@@ -2,8 +2,8 @@ import { runWatch } from '@stu/faults';
 import type { WatchResult } from '@stu/faults';
 import type { KindTable, Notifier } from '@stu/model';
 import { readReported, writeReported } from '@stu/state-file';
+import { createTimedNotifier } from './create-timed-notifier.ts';
 import { makeTimedKind } from './make-timed-kind.ts';
-import { makeTimedNotifier } from './make-timed-notifier.ts';
 import { readWatchConfig } from './read-watch-config.ts';
 
 export interface WatchOnce {
@@ -36,7 +36,7 @@ export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
     ),
     state,
     at: watch.at,
-    notifier: makeTimedNotifier(watch.createNotifier(config.atc.session), {
+    notifier: createTimedNotifier(watch.createNotifier(config.atc.session), {
       sendUntilMs: watch.at.epochMilliseconds + SEND_WINDOW_MS,
       readNowMs: watch.readNowMs,
     }),

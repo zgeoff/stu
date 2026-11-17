@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
-import { makeTimedNotifier } from './make-timed-notifier.ts';
+import { createTimedNotifier } from './create-timed-notifier.ts';
 
 function setupTest() {
   return {
@@ -12,7 +12,7 @@ function setupTest() {
 test('it sends a message that starts before the window closes', async () => {
   const ctx = setupTest();
 
-  const outcome = await makeTimedNotifier(ctx.notifier, {
+  const outcome = await createTimedNotifier(ctx.notifier, {
     sendUntilMs: 1000,
     readNowMs: () => 999,
   }).send(ctx.message);
@@ -23,7 +23,7 @@ test('it sends a message that starts before the window closes', async () => {
 test('it answers failed and sends nothing once the window has closed', async () => {
   const ctx = setupTest();
 
-  const outcome = await makeTimedNotifier(ctx.notifier, {
+  const outcome = await createTimedNotifier(ctx.notifier, {
     sendUntilMs: 1000,
     readNowMs: () => 1000,
   }).send(ctx.message);
