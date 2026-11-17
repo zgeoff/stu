@@ -1,0 +1,17 @@
+{
+  "name": "@stu/host-linux",
+  "private": true,
+  "description": "The memory and disk kinds, read from /proc and df",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@stu/model": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {}
+}
