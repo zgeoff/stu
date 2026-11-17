@@ -36,7 +36,9 @@ no kind can send stu a message.
 stateDiagram-v2
   [*] --> opening: check sees a new fault
   opening --> open: atc takes the open
+  opening --> opening: atc will never run the send key, so the fault takes the next one
   open --> clearing: check runs without it, or the check leaves the config
+  clearing --> clearing: atc will never run the send key, so the fault takes the next one
   clearing --> [*]: atc takes the recovery
 ```
 
