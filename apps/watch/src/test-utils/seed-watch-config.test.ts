@@ -19,14 +19,13 @@ test('it writes stu-watch.config.json in the folder and gives its path', async (
 
   const written: unknown = JSON.parse(text);
 
-  expect([configPath, written]).toStrictEqual([
-    join(ctx.folder, 'stu-watch.config.json'),
-    {
-      atc: { session: 's-stu' },
-      statePath: 'reported.json',
-      checks: [{ id: 'tunnel', kind: 'tcp', host: 'tunnel-a.example', port: 2222 }],
-    },
-  ]);
+  expect(configPath).toBe(join(ctx.folder, 'stu-watch.config.json'));
+
+  expect(written).toStrictEqual({
+    atc: { session: 's-stu' },
+    statePath: 'reported.json',
+    checks: [{ id: 'tunnel', kind: 'tcp', host: 'tunnel-a.example', port: 2222 }],
+  });
 });
 
 test('it writes the checks it is given', async () => {

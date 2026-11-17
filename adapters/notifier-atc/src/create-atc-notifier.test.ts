@@ -70,20 +70,22 @@ test('it sends as a local program: a hello name outside atc/, and a message with
     .createNotifier(atc.socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
-  expect([outcome, atc.hellos, atc.requests]).toStrictEqual([
-    { kind: 'sent' },
-    [{ client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } }],
-    [
-      {
-        path: '/session/message',
-        input: {
-          session: 's-stu',
-          text: 'FAULT tunnel:a:22: no answer from a:22',
-          from: 'stu-watch',
-          idempotencyKey: 'stu-watch:0f3a',
-        },
+  expect(outcome).toStrictEqual({ kind: 'sent' });
+
+  expect(atc.hellos).toStrictEqual([
+    { client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } },
+  ]);
+
+  expect(atc.requests).toStrictEqual([
+    {
+      path: '/session/message',
+      input: {
+        session: 's-stu',
+        text: 'FAULT tunnel:a:22: no answer from a:22',
+        from: 'stu-watch',
+        idempotencyKey: 'stu-watch:0f3a',
       },
-    ],
+    },
   ]);
 });
 
@@ -103,10 +105,8 @@ test('it settles outcome_unknown as sent through /message/get when atc holds the
     .createNotifier(atc.socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
-  expect([outcome, atc.requests.at(-1)]).toStrictEqual([
-    { kind: 'sent' },
-    { path: '/message/get', input: { message: 'm-1' } },
-  ]);
+  expect(outcome).toStrictEqual({ kind: 'sent' });
+  expect(atc.requests.at(-1)).toStrictEqual({ path: '/message/get', input: { message: 'm-1' } });
 });
 
 test('it answers rekey for outcome_unknown when atc holds no message under the effectRef', async () => {
@@ -258,15 +258,14 @@ test('it resends a recovery whose reply was lost under its first key, then sends
     (request) => request.input['idempotencyKey'],
   );
 
-  expect([atc.stored.map((message) => message.text), recoveryResend, reopen]).toStrictEqual([
-    [
-      'FAULT tunnel:a:22: no answer from a:22',
-      'RECOVERED tunnel:a:22 (failing since 2026-11-17T08:00:00.000Z): no answer from a:22',
-      'FAULT tunnel:a:22: no answer from a:22',
-    ],
-    recovery,
-    expect.not.toBeOneOf([open, recovery]),
+  expect(atc.stored.map((message) => message.text)).toStrictEqual([
+    'FAULT tunnel:a:22: no answer from a:22',
+    'RECOVERED tunnel:a:22 (failing since 2026-11-17T08:00:00.000Z): no answer from a:22',
+    'FAULT tunnel:a:22: no answer from a:22',
   ]);
+
+  expect(recoveryResend).toBe(recovery);
+  expect(reopen).not.toBeOneOf([open, recovery]);
 });
 
 test('it leaves stu one fault message and one recovery when the open reply was lost and the fault cleared', async () => {
@@ -314,11 +313,14 @@ test('it stores one message when the first key stays outcome_unknown and the rep
   await ctx.runAt('2026-11-17T08:00:00Z', checks, kinds, notifier);
   await ctx.runAt('2026-11-17T08:01:00Z', checks, kinds, notifier);
 
-  const [first, rekeyed, resend] = atc.requests
+  const keys = atc.requests
     .filter((request) => request.path === '/session/message')
     .map((request) => request.input['idempotencyKey']);
 
-  expect([atc.stored.length, rekeyed, resend]).toStrictEqual([1, `${String(first)}:2`, rekeyed]);
+  const [first] = keys;
+
+  expect(atc.stored).toHaveLength(1);
+  expect(keys).toStrictEqual([first, `${String(first)}:2`, `${String(first)}:2`]);
 });
 
 test('it sends stu one message under a new key when atc.session changed after a lost reply', async () => {

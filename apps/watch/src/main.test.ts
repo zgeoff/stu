@@ -81,19 +81,26 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port, an
   const first = await ctx.runMain([configPath]);
   const second = await ctx.runMain([configPath]);
 
-  expect([first, second, atc.hellos, atc.stored]).toStrictEqual([
-    { exitCode: 0, stdout: 'stu-watch: sent 1, failed 0\n', stderr: '' },
-    { exitCode: 0, stdout: '', stderr: '' },
-    [{ client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } }],
-    [
-      {
-        id: 'm-1',
-        session: 's-stu',
-        text: `FAULT closed:127.0.0.1:${listener.port}: no answer from 127.0.0.1:${listener.port}`,
-        from: 'stu-watch',
-        idempotencyKey: expect.stringMatching(/^stu-watch:[0-9a-f]{32}$/u),
-      },
-    ],
+  expect(first).toStrictEqual({
+    exitCode: 0,
+    stdout: 'stu-watch: sent 1, failed 0\n',
+    stderr: '',
+  });
+
+  expect(second).toStrictEqual({ exitCode: 0, stdout: '', stderr: '' });
+
+  expect(atc.hellos).toStrictEqual([
+    { client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } },
+  ]);
+
+  expect(atc.stored).toStrictEqual([
+    {
+      id: 'm-1',
+      session: 's-stu',
+      text: `FAULT closed:127.0.0.1:${listener.port}: no answer from 127.0.0.1:${listener.port}`,
+      from: 'stu-watch',
+      idempotencyKey: expect.stringMatching(/^stu-watch:[0-9a-f]{32}$/u),
+    },
   ]);
 });
 
@@ -109,9 +116,14 @@ test('it reaches a daemon that listens under its state folder through the daemon
 
   const result = await ctx.runMain([configPath]);
 
-  expect([result, atc.stored.map((message) => message.text)]).toStrictEqual([
-    { exitCode: 0, stdout: 'stu-watch: sent 1, failed 0\n', stderr: '' },
-    ['FAULT broken: cannot run: no kind named no-such-kind'],
+  expect(result).toStrictEqual({
+    exitCode: 0,
+    stdout: 'stu-watch: sent 1, failed 0\n',
+    stderr: '',
+  });
+
+  expect(atc.stored.map((message) => message.text)).toStrictEqual([
+    'FAULT broken: cannot run: no kind named no-such-kind',
   ]);
 });
 

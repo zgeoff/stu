@@ -70,10 +70,8 @@ test('it retries once with the daemon protocol that a protocol_mismatch refusal 
     idempotencyKey: 'k1',
   });
 
-  expect([atc.hellos.map((hello) => hello['protocol']), atc.stored.length]).toStrictEqual([
-    [14, 15],
-    1,
-  ]);
+  expect(atc.hellos.map((hello) => hello['protocol'])).toStrictEqual([14, 15]);
+  expect(atc.stored).toHaveLength(1);
 });
 
 test('it rejects with the atc code of a refusal', async () => {

@@ -75,9 +75,10 @@ test('it stores a message once and replays its key on a resend', async () => {
 
   const replay = await ctx.lines.next();
 
-  expect([replay.value, ctx.atc.stored]).toStrictEqual([
-    '{"i":"2","p":{"b":{"json":{"message":"m-1","status":"queued"}}}}',
-    [{ id: 'm-1', session: 's1', text: 'hi', from: 'stu-watch', idempotencyKey: 'k1' }],
+  expect(replay.value).toBe('{"i":"2","p":{"b":{"json":{"message":"m-1","status":"queued"}}}}');
+
+  expect(ctx.atc.stored).toStrictEqual([
+    { id: 'm-1', session: 's1', text: 'hi', from: 'stu-watch', idempotencyKey: 'k1' },
   ]);
 });
 
@@ -164,12 +165,11 @@ test('it refuses a key with the code its rules give, and stores nothing', async 
 
   const refusal = await lines.next();
 
-  expect([refusal.value, atc.stored]).toStrictEqual([
-    expect.stringContaining(
-      '"code":"unknown_session","status":400,"message":"stub atc: unknown_session","data":{}',
-    ),
-    [],
-  ]);
+  expect(refusal.value).toInclude(
+    '"code":"unknown_session","status":400,"message":"stub atc: unknown_session","data":{}',
+  );
+
+  expect(atc.stored).toStrictEqual([]);
 });
 
 test('it answers every message read with the refusal its rules give', async () => {

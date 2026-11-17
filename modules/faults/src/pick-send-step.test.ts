@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import type { Reported, SendOutcome } from '@stu/model';
+import type { SendOutcome } from '@stu/model';
 import { moveFault } from './move-fault.ts';
 import { pickSendStep } from './pick-send-step.ts';
 import type { SendStep } from './pick-send-step.ts';
@@ -22,7 +22,6 @@ function setupTest() {
 
     // the file with the fault owing its recovery
     clearing: moveFault(moveFault(opening, key, { to: 'open' }), key, { to: 'clearing' }),
-    sendKeyOf: (reported: Reported) => reported.faults[key]?.sendKey,
   };
 }
 
@@ -62,21 +61,15 @@ test('it keeps the send key of a send that failed, and moves nothing', () => {
   expect(step).toStrictEqual({ kind: 'failed', reason: 'timed out' });
 });
 
-test('it gives the next send key on a rekey, with or without a try left', () => {
+test('it moves the fault to its next send key on a rekey, with or without a try left', () => {
   const ctx = setupTest();
-  const sendKey = ctx.sendKeyOf(ctx.opening);
+  const rekeyed = moveFault(ctx.opening, ctx.key, { to: 'rekeyed' });
   const outcome = { kind: 'rekey', reason: 'outcome_unknown' } as const;
   const resend = pickSendStep(ctx.opening, ctx.key, outcome, 2);
   const gaveUp = pickSendStep(ctx.opening, ctx.key, outcome, 1);
 
-  expect([resend, gaveUp]).toMatchObject([
-    { kind: 'resend', state: { faults: { [ctx.key]: { sendKey: `${sendKey}:2` } } } },
-    {
-      kind: 'gave-up',
-      state: { faults: { [ctx.key]: { sendKey: `${sendKey}:2` } } },
-      reason: 'outcome_unknown',
-    },
-  ]);
+  expect(resend).toStrictEqual({ kind: 'resend', state: rekeyed });
+  expect(gaveUp).toStrictEqual({ kind: 'gave-up', state: rekeyed, reason: 'outcome_unknown' });
 });
 
 test('it refuses a key that owes no send', () => {

@@ -10,8 +10,11 @@ test('it records each message and answers with each outcome in turn, then the la
     await notifier.send({ text: 'c', idempotencyKey: 'k3' }),
   ];
 
-  expect([outcomes, notifier.sent.map((message) => message.text)]).toStrictEqual([
-    [{ kind: 'failed', reason: 'no atc' }, { kind: 'sent' }, { kind: 'sent' }],
-    ['a', 'b', 'c'],
+  expect(outcomes).toStrictEqual([
+    { kind: 'failed', reason: 'no atc' },
+    { kind: 'sent' },
+    { kind: 'sent' },
   ]);
+
+  expect(notifier.sent.map((message) => message.text)).toStrictEqual(['a', 'b', 'c']);
 });

@@ -119,11 +119,13 @@ test('it sends nothing and saves only lastRun on a run where nothing changed', a
 
   const result = await ctx.runAt('2026-11-17T08:01:00Z', checks, kinds, ctx.notifier);
 
-  expect([result.sent, ctx.notifier.sent.length, ctx.file.state]).toStrictEqual([
-    0,
-    1,
-    { faults: before.faults, lastRun: { 'disk-main': '2026-11-17T08:01:00.000Z' } },
-  ]);
+  expect(result.sent).toBe(0);
+  expect(ctx.notifier.sent).toHaveLength(1);
+
+  expect(ctx.file.state).toStrictEqual({
+    faults: before.faults,
+    lastRun: { 'disk-main': '2026-11-17T08:01:00.000Z' },
+  });
 });
 
 test('it writes nothing on a run with no due check and nothing owed', async () => {
@@ -156,9 +158,12 @@ test('it resends a failed send once on the next run under the same idempotency k
   await ctx.runAt('2026-11-17T08:01:00Z', checks, kinds, notifier);
   await ctx.runAt('2026-11-17T08:02:00Z', checks, kinds, notifier);
 
-  const [first, resend] = notifier.sent;
+  const message = {
+    text: 'FAULT disk-main:/home: /home is 95% full',
+    idempotencyKey: buildSendKey('disk-main:/home', 'open', '2026-11-17T08:00:00.000Z'),
+  };
 
-  expect([notifier.sent.length, resend]).toStrictEqual([2, first]);
+  expect(notifier.sent).toStrictEqual([message, message]);
 });
 
 test('it keeps a failed send owed in the file', async () => {
@@ -169,10 +174,8 @@ test('it keeps a failed send owed in the file', async () => {
 
   const result = await ctx.runAt('2026-11-17T08:00:00Z', checks, kinds, notifier);
 
-  expect([result.failures, ctx.file.state.faults['disk-main:/home']?.owed]).toStrictEqual([
-    [{ key: 'disk-main:/home', reason: 'atc unreachable' }],
-    'open',
-  ]);
+  expect(result.failures).toStrictEqual([{ key: 'disk-main:/home', reason: 'atc unreachable' }]);
+  expect(ctx.file.state.faults['disk-main:/home']?.owed).toBe('open');
 });
 
 test('it opens one cannot-run fault for a check that throws, and clears none of its faults', async () => {
@@ -292,15 +295,17 @@ test('it sends one recovery for each fault stu holds open for a check dropped fr
 
   await ctx.runAt('2026-11-17T08:01:00Z', [tunnel], kinds, ctx.notifier);
 
-  expect([ctx.notifier.sent.map((message) => message.text), ctx.file.state]).toStrictEqual([
-    [
-      'FAULT disk-main:/home: /home is 95% full',
-      'FAULT disk-main:/var: /var is 97% full',
-      'RECOVERED disk-main:/home (failing since 2026-11-17T08:00:00.000Z): /home is 95% full',
-      'RECOVERED disk-main:/var (failing since 2026-11-17T08:00:00.000Z): /var is 97% full',
-    ],
-    { faults: {}, lastRun: { tunnel: '2026-11-17T08:01:00.000Z' } },
+  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+    'FAULT disk-main:/home: /home is 95% full',
+    'FAULT disk-main:/var: /var is 97% full',
+    'RECOVERED disk-main:/home (failing since 2026-11-17T08:00:00.000Z): /home is 95% full',
+    'RECOVERED disk-main:/var (failing since 2026-11-17T08:00:00.000Z): /var is 97% full',
   ]);
+
+  expect(ctx.file.state).toStrictEqual({
+    faults: {},
+    lastRun: { tunnel: '2026-11-17T08:01:00.000Z' },
+  });
 });
 
 test('it saves a new send key before the send that uses it when atc answers rekey', async () => {
@@ -324,10 +329,8 @@ test('it saves a new send key before the send that uses it when atc answers reke
 
   const [first, second] = sent;
 
-  expect([keysOnFile, second?.idempotencyKey]).toStrictEqual([
-    [first?.idempotencyKey, `${first?.idempotencyKey}:2`],
-    `${first?.idempotencyKey}:2`,
-  ]);
+  expect(keysOnFile).toStrictEqual([first?.idempotencyKey, `${first?.idempotencyKey}:2`]);
+  expect(second?.idempotencyKey).toBe(`${first?.idempotencyKey}:2`);
 });
 
 test('it saves the third key and keeps the send owed when atc answers rekey twice in a row', async () => {
@@ -349,15 +352,13 @@ test('it saves the third key and keeps the send owed when atc answers rekey twic
 
   const firstKey = buildSendKey('tunnel:a:22', 'open', '2026-11-17T08:00:00.000Z');
 
-  expect([
-    notifier.sent.map((message) => message.idempotencyKey),
-    ctx.file.state.faults['tunnel:a:22']?.sendKey,
-    result.failures,
-  ]).toStrictEqual([
-    [firstKey, `${firstKey}:2`],
-    `${firstKey}:3`,
-    [{ key: 'tunnel:a:22', reason: 'idempotency_conflict' }],
+  expect(notifier.sent.map((message) => message.idempotencyKey)).toStrictEqual([
+    firstKey,
+    `${firstKey}:2`,
   ]);
+
+  expect(ctx.file.state.faults['tunnel:a:22']?.sendKey).toBe(`${firstKey}:3`);
+  expect(result.failures).toStrictEqual([{ key: 'tunnel:a:22', reason: 'idempotency_conflict' }]);
 });
 
 test('it keeps owing an open whose send failed when the fault clears, then sends the open and the recovery', async () => {
@@ -395,11 +396,13 @@ test('it resends an owed recovery before it opens the fault that came back, unde
 
   const [open, recovery, recoveryResend, reopen] = notifier.sent;
 
-  expect(reopen?.idempotencyKey).not.toBe(open?.idempotencyKey);
-
-  expect([notifier.sent.length, recoveryResend, reopen?.text]).toStrictEqual([
-    4,
-    recovery,
+  expect(notifier.sent.map((message) => message.text)).toStrictEqual([
+    'FAULT tunnel:a:22: no answer from a:22',
+    'RECOVERED tunnel:a:22 (failing since 2026-11-17T08:00:00.000Z): no answer from a:22',
+    'RECOVERED tunnel:a:22 (failing since 2026-11-17T08:00:00.000Z): no answer from a:22',
     'FAULT tunnel:a:22: no answer from a:22',
   ]);
+
+  expect(recoveryResend).toStrictEqual(recovery);
+  expect(reopen?.idempotencyKey).not.toBe(open?.idempotencyKey);
 });

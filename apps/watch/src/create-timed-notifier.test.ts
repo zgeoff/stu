@@ -17,7 +17,8 @@ test('it sends a message that starts before the window closes', async () => {
     readNowMs: () => 999,
   }).send(ctx.message);
 
-  expect([outcome, ctx.notifier.sent]).toStrictEqual([{ kind: 'sent' }, [ctx.message]]);
+  expect(outcome).toStrictEqual({ kind: 'sent' });
+  expect(ctx.notifier.sent).toStrictEqual([ctx.message]);
 });
 
 test('it answers failed and sends nothing once the window has closed', async () => {
@@ -28,8 +29,6 @@ test('it answers failed and sends nothing once the window has closed', async () 
     readNowMs: () => 1000,
   }).send(ctx.message);
 
-  expect([outcome, ctx.notifier.sent]).toStrictEqual([
-    { kind: 'failed', reason: 'no time left in this run' },
-    [],
-  ]);
+  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'no time left in this run' });
+  expect(ctx.notifier.sent).toStrictEqual([]);
 });
