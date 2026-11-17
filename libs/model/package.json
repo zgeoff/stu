@@ -4,7 +4,8 @@
   "description": "The types, the config schema and the port types that stu's packages share",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
   },
   "scripts": {
     "typecheck": "tsrs --noEmit"

@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readAtcSocketPaths } from './read-atc-socket-paths.ts';
+import type { DaemonRecord } from './test-utils/build-mock-daemon-record.ts';
+import { seedDaemonRecord } from './test-utils/seed-daemon-record.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -19,7 +21,12 @@ async function setupTest() {
     home,
     runtimeDir,
     stateDir,
-    writeDaemonRecord: (text: string) => writeFile(join(stateDir, 'daemon.json'), text),
+    seed: {
+      daemonRecord: (input: Partial<DaemonRecord>) => seedDaemonRecord({ stateDir }, input),
+    },
+
+    // a record atc's schema would refuse, which no seed writes
+    writeBrokenDaemonRecord: (text: string) => writeFile(join(stateDir, 'daemon.json'), text),
   };
 }
 
@@ -40,9 +47,7 @@ test('it gives the client socket under the state folder when XDG_RUNTIME_DIR is 
 test('it gives the socket the daemon record holds after the computed one when the two differ', async () => {
   const ctx = await setupTest();
 
-  await ctx.writeDaemonRecord(
-    JSON.stringify({ pid: 4242, socketPath: join(ctx.stateDir, 'atc-daemon.sock') }),
-  );
+  await ctx.seed.daemonRecord({ socketPath: join(ctx.stateDir, 'atc-daemon.sock') });
 
   const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: ctx.runtimeDir });
 
@@ -55,9 +60,7 @@ test('it gives the socket the daemon record holds after the computed one when th
 test('it gives the computed socket once when the daemon record holds the same one', async () => {
   const ctx = await setupTest();
 
-  await ctx.writeDaemonRecord(
-    JSON.stringify({ pid: 4242, socketPath: join(ctx.runtimeDir, 'atc-daemon.sock') }),
-  );
+  await ctx.seed.daemonRecord({ socketPath: join(ctx.runtimeDir, 'atc-daemon.sock') });
 
   const paths = await readAtcSocketPaths({ HOME: ctx.home, XDG_RUNTIME_DIR: ctx.runtimeDir });
 
@@ -69,7 +72,7 @@ test.each(['{"pid": 42', '{"pid": 4242}'])(
   async (record) => {
     const ctx = await setupTest();
 
-    await ctx.writeDaemonRecord(record);
+    await ctx.writeBrokenDaemonRecord(record);
 
     const paths = await readAtcSocketPaths({
       HOME: ctx.home,

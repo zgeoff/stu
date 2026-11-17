@@ -1,9 +1,13 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { WatchConfig } from '@stu/model';
+import type { DaemonRecord } from '@stu/notifier-atc/test-utils/build-mock-daemon-record';
+import { seedDaemonRecord } from '@stu/notifier-atc/test-utils/seed-daemon-record';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { startStubTCP } from '@stu/probe-net/test-utils/start-stub-tcp';
+import { seedWatchConfig } from './test-utils/seed-watch-config.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -34,12 +38,9 @@ async function setupTest() {
 
       return atc;
     },
-    writeConfig: async (config: Readonly<Record<string, unknown>>) => {
-      const configPath = join(folder, 'stu-watch.config.json');
-
-      await writeFile(configPath, JSON.stringify(config));
-
-      return configPath;
+    seed: {
+      watchConfig: (input: Partial<WatchConfig>) => seedWatchConfig({ folder }, input),
+      daemonRecord: (input: Partial<DaemonRecord>) => seedDaemonRecord({ stateDir }, input),
     },
 
     // the environment a systemd user unit gets: the manager's, with no ATC_* variable and no
@@ -79,9 +80,7 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port, an
 
   await listener.stop();
 
-  const configPath = await ctx.writeConfig({
-    atc: { session: 's-stu' },
-    statePath: 'reported.json',
+  const configPath = await ctx.seed.watchConfig({
     checks: [{ id: 'closed', kind: 'tcp', host: '127.0.0.1', port: listener.port }],
   });
 
@@ -108,14 +107,9 @@ test('it reaches a daemon that listens under its state folder through the daemon
   const ctx = await setupTest();
   const atc = await ctx.startAtc(ctx.stateDir);
 
-  await writeFile(
-    join(ctx.stateDir, 'daemon.json'),
-    JSON.stringify({ pid: 4242, socketPath: atc.socketPath, protocol: 14 }),
-  );
+  await ctx.seed.daemonRecord({ socketPath: atc.socketPath });
 
-  const configPath = await ctx.writeConfig({
-    atc: { session: 's-stu' },
-    statePath: 'reported.json',
+  const configPath = await ctx.seed.watchConfig({
     checks: [{ id: 'broken', kind: 'no-such-kind' }],
   });
 
@@ -130,9 +124,7 @@ test('it reaches a daemon that listens under its state folder through the daemon
 test('it exits 1 and prints the cause when no atc daemon listens', async () => {
   const ctx = await setupTest();
 
-  const configPath = await ctx.writeConfig({
-    atc: { session: 's-stu' },
-    statePath: 'reported.json',
+  const configPath = await ctx.seed.watchConfig({
     checks: [{ id: 'broken', kind: 'no-such-kind' }],
   });
 
