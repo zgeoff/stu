@@ -68,7 +68,7 @@ atc refuses to run a key again in two cases:
 
 - atc answers `outcome_unknown` when it cannot tell whether the first send ran. The notifier asks
   atc for the message whose id the error holds. When atc holds it, the send counts as taken. When
-  atc answers that it holds no such message, the watcher needs a new key.
+  atc answers that it holds no such message, or the error holds no id, the watcher needs a new key.
 - atc answers `idempotency_conflict` when a resend differs from the first send, such as after the
   owner changes the session in the config. The watcher needs a new key.
 

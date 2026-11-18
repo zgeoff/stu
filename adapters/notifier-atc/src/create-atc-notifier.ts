@@ -45,7 +45,8 @@ export function createAtcNotifier(options: AtcNotifierOptions): Notifier {
 }
 
 // The refusal holds the id atc minted for the message. A message stored under it counts as sent,
-// and atc answers bad_args for one it does not hold.
+// and atc answers bad_args for one it does not hold. A refusal without the id gets a new key too,
+// because atc refuses the old key on every resend, and the send would stay owed for good.
 async function readUnknownOutcome(
   options: AtcNotifierOptions,
   refused: Extract<AtcAnswer, { kind: 'refused' }>,
@@ -53,7 +54,7 @@ async function readUnknownOutcome(
   const effectRef = refused.data['effectRef'];
 
   if (typeof effectRef !== 'string') {
-    return { kind: 'failed', reason: 'outcome_unknown without an effectRef' };
+    return { kind: 'rekey', reason: 'outcome_unknown without an effectRef' };
   }
 
   const read = await options.client.read('/message/get', { message: effectRef });

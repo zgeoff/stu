@@ -197,7 +197,7 @@ test('it answers failed with the cause when atc cannot be reached', async () => 
   });
 });
 
-test('it answers failed for outcome_unknown without an effectRef', async () => {
+test('it answers rekey for outcome_unknown without an effectRef', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
@@ -214,7 +214,7 @@ test('it answers failed for outcome_unknown without an effectRef', async () => {
     .createNotifier(atc.socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
-  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'outcome_unknown without an effectRef' });
+  expect(outcome).toStrictEqual({ kind: 'rekey', reason: 'outcome_unknown without an effectRef' });
 });
 
 test('it answers failed for outcome_unknown when the message read fails for another cause', async () => {
