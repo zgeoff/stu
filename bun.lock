@@ -121,6 +121,10 @@
         "@stu/quota-anthropic": "workspace:*",
         "@stu/sessions-atc": "workspace:*",
         "@stu/state-file": "workspace:*",
+        "tiny-invariant": "catalog:",
+      },
+      "devDependencies": {
+        "@zgeoff/testing": "catalog:",
       },
     },
     "libs/model": {
