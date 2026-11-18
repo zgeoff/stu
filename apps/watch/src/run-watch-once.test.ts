@@ -33,10 +33,13 @@ async function setupTest() {
         readReported,
         writeReported,
       }),
-    run: (watch: Pick<WatchOnce, 'configPath' | 'kinds' | 'at' | 'readNowMs' | 'sleepMs'>) =>
+    run: (
+      watch: Pick<WatchOnce, 'configPath' | 'kinds' | 'at' | 'readNowMs' | 'sleepMs'> &
+        Partial<Pick<WatchOnce, 'createNotifier'>>,
+    ) =>
       runWatchOnce({
-        ...watch,
         createNotifier: () => notifier,
+        ...watch,
         readConfig: readWatchConfig,
         readReported,
         writeReported,
@@ -91,11 +94,11 @@ test('it opens a cannot-run fault for a check whose kind runs past 30 seconds', 
     sleepMs: (durationMs) => {
       asked.push(durationMs);
 
-      return Promise.resolve();
+      return durationMs === 30_000 ? Promise.resolve() : new Promise(() => {});
     },
   });
 
-  expect(asked).toStrictEqual([30_000]);
+  expect(asked).toStrictEqual([30_000, 45_000]);
 
   expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
     'FAULT tunnel: cannot run: timed out after 30000 ms',
@@ -141,4 +144,40 @@ test('it sends a message that starts just under 35 seconds after the run starts'
   expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
     'FAULT tunnel:a:22: no answer from a:22',
   ]);
+});
+
+test('it cuts a resend that hangs past the end of the run, and saves the fault the run found', async () => {
+  const ctx = await setupTest();
+  const configPath = await ctx.seed.watchConfig({ checks: [{ id: 'tunnel', kind: 'tcp' }] });
+
+  const hungAtc = { send: () => new Promise<never>(() => {}) };
+
+  const runHung = (at: string, faults: readonly Fault[]) =>
+    ctx.run({
+      configPath,
+      kinds: { tcp: makeStubKind([faults]) },
+      at: Temporal.Instant.from(at),
+      readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
+
+      // only the cut at the end of the sends fires; the check timeout never does
+      sleepMs: (durationMs) => (durationMs === 45_000 ? Promise.resolve() : new Promise(() => {})),
+      createNotifier: () => hungAtc,
+    });
+
+  await runHung('2026-11-17T08:00:00Z', [{ key: 'a:22', line: 'no answer from a:22' }]);
+
+  const result = await runHung('2026-11-17T08:01:00Z', [
+    { key: 'a:22', line: 'no answer from a:22' },
+    { key: 'b:22', line: 'no answer from b:22' },
+  ]);
+
+  const config = await readWatchConfig(configPath);
+  const stored = await readReported(config.statePath);
+
+  expect(result.failures.map((failure) => failure.reason)).toStrictEqual([
+    'atc send ran past the end of the run',
+    'atc send ran past the end of the run',
+  ]);
+
+  expect(stored.faults['tunnel:b:22']?.owed).toBe('open');
 });

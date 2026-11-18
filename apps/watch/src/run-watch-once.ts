@@ -21,9 +21,11 @@ export interface WatchOnce {
 // time limit, so a hung probe still lets the run send and exit.
 const CHECK_TIMEOUT_MS = 30_000;
 
-// No send starts later than this after the run starts, so a hung atc leaves the service's 50-second
-// limit room for the sends already started. The run saves what it found before it sends.
+// No send starts later than SEND_WINDOW_MS after the run starts, and a send still running at
+// SENDS_END_MS is cut, so a hung atc leaves the service's 50-second limit room to save what the run
+// found, which it saves after it resends what earlier runs owe.
 const SEND_WINDOW_MS = 35_000;
+const SENDS_END_MS = 45_000;
 
 export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
   const config = await watch.readConfig(watch.configPath);
@@ -41,7 +43,9 @@ export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
     at: watch.at,
     notifier: createTimedNotifier(watch.createNotifier(config.atc.session), {
       sendUntilMs: watch.at.epochMilliseconds + SEND_WINDOW_MS,
+      sendsEndMs: watch.at.epochMilliseconds + SENDS_END_MS,
       readNowMs: watch.readNowMs,
+      sleepMs: watch.sleepMs,
     }),
     writeReported: (next) => watch.writeReported(config.statePath, next),
   });
