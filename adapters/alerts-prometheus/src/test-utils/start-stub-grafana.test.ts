@@ -1,19 +1,19 @@
 import { expect, onTestFinished, test } from 'bun:test';
 import { startStubGrafana } from './start-stub-grafana.ts';
 
-async function setupTest(firing: readonly Readonly<Record<string, string>>[]) {
-  const grafana = await startStubGrafana({ token: 'glsa_test_token', firing });
-
-  onTestFinished(() => grafana.stop());
-
+function setupTest() {
   return {
-    readQuery: async (token: string) => {
-      const response = await fetch(
-        `${grafana.url}/api/datasources/proxy/uid/prom-test/api/v1/query`,
-        {
-          headers: { authorization: `Bearer ${token}` },
-        },
-      );
+    startGrafana: async (firing: readonly Readonly<Record<string, string>>[]) => {
+      const grafana = await startStubGrafana({ token: 'glsa_test_token', firing });
+
+      onTestFinished(() => grafana.stop());
+
+      return grafana;
+    },
+    readQuery: async (url: string, token: string) => {
+      const response = await fetch(`${url}/api/datasources/proxy/uid/prom-test/api/v1/query`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
 
       return { status: response.status, body: await response.text() };
     },
@@ -21,8 +21,10 @@ async function setupTest(firing: readonly Readonly<Record<string, string>>[]) {
 }
 
 test('it answers the token with a Prometheus vector of the firing alerts', async () => {
-  const ctx = await setupTest([{ alertname: 'DiskFull', severity: 'critical' }]);
-  const answer = await ctx.readQuery('glsa_test_token');
+  const ctx = setupTest();
+
+  const grafana = await ctx.startGrafana([{ alertname: 'DiskFull', severity: 'critical' }]);
+  const answer = await ctx.readQuery(grafana.url, 'glsa_test_token');
 
   const body: unknown = JSON.parse(answer.body);
 
@@ -49,8 +51,10 @@ test('it answers the token with a Prometheus vector of the firing alerts', async
 });
 
 test('it answers 401 to another token', async () => {
-  const ctx = await setupTest([]);
-  const answer = await ctx.readQuery('glsa_other_token');
+  const ctx = setupTest();
+
+  const grafana = await ctx.startGrafana([]);
+  const answer = await ctx.readQuery(grafana.url, 'glsa_other_token');
 
   expect(answer).toStrictEqual({ status: 401, body: '' });
 });
