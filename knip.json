@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/knip/schema.json",
-  // the shared oxlint config loads the plugin, so knip never sees it
-  "ignoreDependencies": ["@stylistic/eslint-plugin"],
+  // the shared oxlint config loads the plugin, and the chex baseline runs diet, so knip never sees either
+  "ignoreDependencies": ["@stylistic/eslint-plugin", "@zgeoff/diet"],
   // the test script names its roots, so knip reads no package's tests from it
   "workspaces": {
     // the agent hooks run start.ts from .claude/settings.json and .codex/hooks.json, which knip
