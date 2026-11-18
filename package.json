@@ -2,6 +2,7 @@
   "name": "stu",
   "private": true,
   "description": "What stu needs to run the owner's conversation",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zgeoff/stu.git"
@@ -20,6 +21,7 @@
       "@stylistic/eslint-plugin": "5.10.0",
       "@tsconfig/strictest": "2.0.8",
       "@types/bun": "1.4.4",
+      "@zgeoff/agent-hooks": "0.2.12",
       "@zgeoff/bun-test-extended": "0.2.3",
       "@zgeoff/chex": "0.3.4",
       "@zgeoff/commitlint-config": "0.1.0",
@@ -73,6 +75,7 @@
     "@stylistic/eslint-plugin": "catalog:",
     "@tsconfig/strictest": "catalog:",
     "@types/bun": "catalog:",
+    "@zgeoff/agent-hooks": "catalog:",
     "@zgeoff/bun-test-extended": "catalog:",
     "@zgeoff/chex": "catalog:",
     "@zgeoff/commitlint-config": "catalog:",
