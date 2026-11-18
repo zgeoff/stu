@@ -30,13 +30,13 @@ The mistakes that cost most here:
 - Load the skill for the work before you start it. The skills are in `.agents/skills/`, and
   `.claude/skills` links to that folder:
 
-  | Skill                        | Load before                             |
-  | ---------------------------- | --------------------------------------- |
-  | `docs-writing`               | writing or editing any committed prose  |
-  | `code-style`                 | writing, reviewing or renaming code     |
-  | `testing`                    | writing or reviewing a test             |
-  | `ci-design`                  | changing a workflow, a job or a trigger |
-  | `skill-writing` and `deslop` | creating or changing a skill            |
+  | Skill                           | Load before                             |
+  | ------------------------------- | --------------------------------------- |
+  | `docs-writing`                  | writing or editing any committed prose  |
+  | `code-style`                    | writing, reviewing or renaming code     |
+  | `testing` and `project-testing` | writing or reviewing a test             |
+  | `ci-design`                     | changing a workflow, a job or a trigger |
+  | `skill-writing` and `deslop`    | creating or changing a skill            |
 
 - The repo-sync workflow copies the shared skills from
   [zgeoff/skills](https://github.com/zgeoff/skills), and the shared workflows, hooks and scripts
