@@ -36,9 +36,8 @@ stu a message. The session kinds read atc through a port that offers only reads.
 
 Three kinds read what other systems already watch. Each one throws when it cannot read its source,
 so the engine opens the check's cannot-run fault and reports none of the source's faults as
-recovered. A thrown message names only the check, a slot or monitor id, a status or an exit code. It
-never quotes a token, a URL, an `op://` reference or a response body, because the engine sends it to
-stu.
+recovered. The engine sends a thrown message to stu, so a kind never puts a token, a URL, an `op://`
+reference or a response body in one.
 
 | Kind                | Reads                                                                 | Fault key                                                                         |
 | ------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
