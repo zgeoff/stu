@@ -52,5 +52,7 @@ test('it passes sleeps until the work settles', async () => {
 test('it throws when the test passes a sleep and none is waiting', () => {
   const clock = buildStubClock(0);
 
-  expect(() => clock.passNextSleep()).toThrowWithMessage(Error, /no sleep is waiting/u);
+  expect(() => {
+    clock.passNextSleep();
+  }).toThrowWithMessage(Error, /no sleep is waiting/u);
 });

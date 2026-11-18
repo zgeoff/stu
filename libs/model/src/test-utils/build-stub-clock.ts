@@ -13,10 +13,8 @@ export function buildStubClock(startMs: number) {
 
   const waiting = new Set<WaitingSleep>();
 
-  const sleepMs: SleepMs = (durationMs, signal) => {
-    if (signal.aborted) {
-      return Promise.reject(signal.reason);
-    }
+  const sleepMs: SleepMs = async (durationMs, signal) => {
+    signal.throwIfAborted();
 
     const sleep = Promise.withResolvers<void>();
     const entry = { endMs: nowMs + durationMs, pass: sleep.resolve };
@@ -28,7 +26,7 @@ export function buildStubClock(startMs: number) {
       sleep.reject(signal.reason);
     });
 
-    return sleep.promise;
+    await sleep.promise;
   };
 
   // ends the sleep that ends first, the first asked of a tie, and moves the clock to its end

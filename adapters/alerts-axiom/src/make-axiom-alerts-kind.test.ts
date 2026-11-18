@@ -321,7 +321,10 @@ test('it starts no history read after one fails', async () => {
     token: 'xaat-test-token',
   });
 
-  await faults.catch(() => failed.resolve());
+  await faults.catch(() => {
+    failed.resolve();
+  });
+
   await ctx.timers.passSleepsUntilSettled(Promise.resolve());
 
   expect(asked).toStrictEqual([
