@@ -12,6 +12,9 @@
   },
   "dependencies": {
     "@atcx/contract": "catalog:",
+    "@orpc/client": "catalog:",
+    "@orpc/standard-server": "catalog:",
+    "@orpc/standard-server-peer": "catalog:",
     "@stu/model": "workspace:*",
     "ts-pattern": "catalog:",
     "zod": "catalog:"

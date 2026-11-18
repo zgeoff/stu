@@ -1,3 +1,6 @@
+import type { DAEMON_CONTRACT } from '@atcx/contract';
+import type { ContractRouterClient } from '@orpc/contract';
+
 // One thing a check sees wrong now. The key is stable within its check, such as "/home" or a
 // session id, so the same fault on the next run matches it.
 export interface Fault {
@@ -49,6 +52,17 @@ export interface HostPort {
   readonly readDiskUsage: (paths: readonly string[]) => Promise<string>;
 }
 
+// The procedures of atc's published contract, as a client calls them.
+export type AtcProcedures = ContractRouterClient<typeof DAEMON_CONTRACT>;
+
+// The input of each atc procedure the watcher calls, as atc's contract types it.
+export interface AtcInputs {
+  readonly '/session/list': Parameters<AtcProcedures['session']['list']>[0];
+  readonly '/session/get': Parameters<AtcProcedures['session']['get']>[0];
+  readonly '/message/get': Parameters<AtcProcedures['message']['get']>[0];
+  readonly '/session/message': Parameters<AtcProcedures['session']['message']>[0];
+}
+
 // The atc procedures that read and change nothing.
 export type AtcReadPath = '/session/list' | '/session/get' | '/message/get';
 
@@ -64,9 +78,9 @@ export type AtcAnswer =
 
 // Read-only access to atc: a package that holds only this port cannot send a message.
 export interface AtcReader {
-  readonly read: (
-    path: AtcReadPath,
-    input: Readonly<Record<string, unknown>>,
+  readonly read: <Path extends AtcReadPath>(
+    path: Path,
+    input: AtcInputs[Path],
   ) => Promise<AtcAnswer>;
 }
 

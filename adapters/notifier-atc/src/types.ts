@@ -1,12 +1,14 @@
-import type { AtcAnswer, AtcReader } from '@stu/model';
+import type { AtcAnswer, AtcInputs, AtcReadPath, AtcReader } from '@stu/model';
 
 export type AtcWritePath = '/session/message';
 
+export type AtcCallPath = AtcReadPath | AtcWritePath;
+
 // One connection per call: the client opens it, says hello, makes the call and closes it.
 export interface AtcSocketClient extends AtcReader {
-  readonly write: (
-    path: AtcWritePath,
-    input: Readonly<Record<string, unknown>>,
+  readonly write: <Path extends AtcWritePath>(
+    path: Path,
+    input: AtcInputs[Path],
   ) => Promise<AtcAnswer>;
 }
 

@@ -8,7 +8,7 @@ export function buildStubAtcReader(
 ): AtcReader {
   return {
     read: (path, input) => {
-      const session = String(input['session']);
+      const session = 'session' in input ? String(input.session) : '';
       const answer = path === '/session/list' ? listAnswer : getAnswers[session];
 
       return answer === undefined

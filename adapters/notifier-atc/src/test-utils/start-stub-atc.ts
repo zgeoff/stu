@@ -3,8 +3,12 @@ import { createServer } from 'node:net';
 import type { Socket } from 'node:net';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
+import { ORPCError } from '@orpc/client';
+import { StandardRPCJsonSerializer, StandardRPCSerializer } from '@orpc/client/standard';
+import type { StandardRequest, StandardResponse } from '@orpc/standard-server';
+import { ServerPeer } from '@orpc/standard-server-peer';
+import { match } from 'ts-pattern';
 import { z } from 'zod';
-import { PEER_FIELDS as PEER } from '../peer-fields.ts';
 
 // How the stub daemon treats each idempotency key, by the order it first sees the key: 0 is the
 // first key sent.
@@ -44,14 +48,17 @@ export interface StubAtcRequest {
   readonly input: Readonly<Record<string, unknown>>;
 }
 
-const REQUEST_BODY_SCHEMA = z.object({ json: z.record(z.string(), z.unknown()) });
-
-const REQUEST_PAYLOAD_SCHEMA = z.object({
-  [PEER.path]: z.string(),
-  [PEER.body]: REQUEST_BODY_SCHEMA,
-});
-
-const REQUEST_SCHEMA = z.object({ [PEER.id]: z.string(), [PEER.payload]: REQUEST_PAYLOAD_SCHEMA });
+// What the stub does with one request: answer it, refuse it, or close the connection without a
+// response.
+type StubAtcReply =
+  | { readonly kind: 'answer'; readonly body: unknown }
+  | {
+      readonly kind: 'refuse';
+      readonly code: string;
+      readonly data: Readonly<Record<string, unknown>>;
+      readonly thenClose: boolean;
+    }
+  | { readonly kind: 'drop' };
 
 const MESSAGE_INPUT_SCHEMA = z.object({
   session: z.string(),
@@ -60,8 +67,8 @@ const MESSAGE_INPUT_SCHEMA = z.object({
   idempotencyKey: z.string(),
 });
 
-// A fake atc daemon on a unix socket in the folder. It records each hello and request, stores each
-// message, and replays a key it holds, as atc does.
+// A fake atc daemon on a unix socket in the folder, speaking oRPC's peer messages as atc does. It
+// records each hello and request, stores each message, and replays a key it holds, as atc does.
 export async function startStubAtc(folder: string, rules: StubAtcRules) {
   const hellos: Readonly<Record<string, unknown>>[] = [];
   const requests: StubAtcRequest[] = [];
@@ -70,7 +77,7 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
 
   const dropped = new Set<string>();
 
-  const answerMessage = (socket: Socket, id: string, input: Readonly<Record<string, unknown>>) => {
+  const replyToMessage = (input: Readonly<Record<string, unknown>>): StubAtcReply => {
     const message = MESSAGE_INPUT_SCHEMA.parse(input);
 
     if (!keys.includes(message.idempotencyKey)) {
@@ -82,21 +89,20 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
     const refusal = rules.refusedKeys[order];
 
     if (refusal !== undefined) {
-      writeRefusal(socket, id, refusal, {});
-
-      return;
+      return { kind: 'refuse', code: refusal, data: {}, thenClose: false };
     }
 
     if (rules.unknownLost.includes(order)) {
-      writeRefusal(socket, id, 'outcome_unknown', { effectRef: `m-lost-${order}` });
-
-      return;
+      return {
+        kind: 'refuse',
+        code: 'outcome_unknown',
+        data: { effectRef: `m-lost-${order}` },
+        thenClose: false,
+      };
     }
 
     if (held !== undefined && held.session !== message.session) {
-      writeRefusal(socket, id, 'idempotency_conflict', {});
-
-      return;
+      return { kind: 'refuse', code: 'idempotency_conflict', data: {}, thenClose: false };
     }
 
     const entry = held ?? { id: `m-${stored.length + 1}`, ...message };
@@ -106,76 +112,97 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
     }
 
     if (rules.unknownStored.includes(order)) {
-      writeRefusal(socket, id, 'outcome_unknown', { effectRef: entry.id });
-
-      return;
+      return {
+        kind: 'refuse',
+        code: 'outcome_unknown',
+        data: { effectRef: entry.id },
+        thenClose: false,
+      };
     }
 
     if (rules.dropFirstReply.includes(order) && !dropped.has(message.idempotencyKey)) {
       dropped.add(message.idempotencyKey);
-      socket.destroy();
 
-      return;
+      return { kind: 'drop' };
     }
 
-    writeAnswer(socket, id, rules.sendAnswer ?? { message: entry.id, status: 'queued' });
+    return { kind: 'answer', body: rules.sendAnswer ?? { message: entry.id, status: 'queued' } };
   };
 
-  const answerLine = (socket: Socket, line: string) => {
-    const parsed: unknown = JSON.parse(line);
-    const request = REQUEST_SCHEMA.parse(parsed);
-    const id = request[PEER.id];
-    const path = request[PEER.payload][PEER.path];
-    const input = request[PEER.payload][PEER.body].json;
+  const replyToMessageRead = (input: Readonly<Record<string, unknown>>): StubAtcReply => {
+    if (rules.messageReadRefusal !== null) {
+      return { kind: 'refuse', code: rules.messageReadRefusal, data: {}, thenClose: false };
+    }
 
+    const found = stored.find((entry) => entry.id === input['message']);
+
+    return found === undefined
+      ? { kind: 'refuse', code: 'bad_args', data: {}, thenClose: false }
+      : { kind: 'answer', body: { id: found.id, session: found.session, text: found.text } };
+  };
+
+  const replyToHello = (input: Readonly<Record<string, unknown>>): StubAtcReply => {
+    hellos.push(input);
+
+    return input['protocol'] === rules.protocol
+      ? { kind: 'answer', body: { peerSession: null } }
+      : {
+          kind: 'refuse',
+          code: 'protocol_mismatch',
+          data: { daemonProtocol: rules.protocol, clientProtocol: input['protocol'] },
+          thenClose: true,
+        };
+  };
+
+  const replyByPath: Readonly<
+    Record<string, (input: Readonly<Record<string, unknown>>) => StubAtcReply>
+  > = {
+    '/session/message': replyToMessage,
+    '/message/get': replyToMessageRead,
+  };
+
+  // a hello is recorded on its own, and every other request in the order it came
+  const replyToRequest = (path: string, input: Readonly<Record<string, unknown>>): StubAtcReply => {
     if (path === '/daemon/hello') {
-      hellos.push(input);
-
-      if (input['protocol'] === rules.protocol) {
-        writeAnswer(socket, id, { peerSession: null });
-      } else {
-        writeRefusal(socket, id, 'protocol_mismatch', {
-          daemonProtocol: rules.protocol,
-          clientProtocol: input['protocol'],
-        });
-
-        socket.end();
-      }
-
-      return;
+      return replyToHello(input);
     }
 
     requests.push({ path, input });
 
-    if (path === '/session/message') {
-      answerMessage(socket, id, input);
-    } else if (path === '/message/get' && rules.messageReadRefusal !== null) {
-      writeRefusal(socket, id, rules.messageReadRefusal, {});
-    } else if (path === '/message/get') {
-      const found = stored.find((entry) => entry.id === input['message']);
+    const reply = replyByPath[path];
 
-      if (found === undefined) {
-        writeRefusal(socket, id, 'bad_args', {});
-      } else {
-        writeAnswer(socket, id, { id: found.id, session: found.session, text: found.text });
-      }
-    } else {
-      writeRefusal(socket, id, 'unknown_method', {});
-    }
+    return reply === undefined
+      ? { kind: 'refuse', code: 'unknown_method', data: {}, thenClose: false }
+      : reply(input);
   };
 
   const connections = new Set<Socket>();
 
   const server = createServer((socket) => {
+    const peer = new ServerPeer((message) => {
+      if (!socket.destroyed) {
+        socket.write(`${String(message)}\n`);
+      }
+    });
+
     connections.add(socket);
 
     socket.on('close', () => {
       connections.delete(socket);
+      peer.close();
     });
 
-    createInterface({ input: socket }).on('line', (line) => {
-      answerLine(socket, line);
-    });
+    createInterface({ input: socket })
+      .on('line', (line) => {
+        void peer.message(line, (request) => {
+          const reply = replyToRequest(request.url.pathname, readRequestInput(request));
+
+          return buildStubResponse(socket, reply);
+        });
+      })
+      .on('error', () => {
+        socket.destroy();
+      });
   });
 
   // the name atc gives its client socket; atc.sock beside it is the socket its session hooks report on
@@ -202,21 +229,42 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
   };
 }
 
-// The body an oRPC error carries: its code, message and the data the code defines.
-function writeRefusal(
-  socket: Socket,
-  id: string,
-  code: string,
-  data: Readonly<Record<string, unknown>>,
-): void {
-  const json = { defined: false, code, status: 400, message: `stub atc: ${code}`, data };
-  const refusal = { [PEER.id]: id, [PEER.payload]: { [PEER.status]: 400, [PEER.body]: { json } } };
+const INPUT_SCHEMA = z.record(z.string(), z.unknown());
 
-  socket.write(`${JSON.stringify(refusal)}\n`);
+const SERIALIZER = new StandardRPCSerializer(new StandardRPCJsonSerializer());
+
+function readRequestInput(request: StandardRequest): Readonly<Record<string, unknown>> {
+  return INPUT_SCHEMA.parse(SERIALIZER.deserialize(request.body));
 }
 
-function writeAnswer(socket: Socket, id: string, json: unknown): void {
-  const answer = { [PEER.id]: id, [PEER.payload]: { [PEER.body]: { json } } };
+// A dropped request gets no response: the stub closes the connection, and the response waits for
+// good.
+function buildStubResponse(socket: Socket, reply: StubAtcReply): Promise<StandardResponse> {
+  return match(reply)
+    .with({ kind: 'drop' }, () => {
+      socket.destroy();
 
-  socket.write(`${JSON.stringify(answer)}\n`);
+      return Promise.withResolvers<StandardResponse>().promise;
+    })
+    .with({ kind: 'answer' }, (answer) =>
+      Promise.resolve({ status: 200, headers: {}, body: SERIALIZER.serialize(answer.body) }),
+    )
+    .with({ kind: 'refuse' }, (refusal) => {
+      const error = new ORPCError<string, unknown>(refusal.code, {
+        status: 400,
+        message: `stub atc: ${refusal.code}`,
+        data: refusal.data,
+      });
+
+      if (refusal.thenClose) {
+        setImmediate(() => socket.end());
+      }
+
+      return Promise.resolve({
+        status: error.status,
+        headers: {},
+        body: SERIALIZER.serialize(error.toJSON()),
+      });
+    })
+    .exhaustive();
 }

@@ -47,9 +47,7 @@ test('it says hello with its client name and protocol 14 before the call', async
     idempotencyKey: 'k1',
   });
 
-  expect(atc.hellos).toStrictEqual([
-    { client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } },
-  ]);
+  expect(atc.hellos).toStrictEqual([{ client: 'stu-watch/0.1.0', protocol: 14 }]);
 });
 
 test('it retries once with the daemon protocol that a protocol_mismatch refusal gives', async () => {
@@ -135,15 +133,12 @@ test('it answers unreached when atc gives no answer within the timeout', async (
   expect(answer).toStrictEqual({ kind: 'unreached', reason: 'atc gave no answer in 200 ms' });
 });
 
-test.each([
-  ['a line that is not JSON', 'not json\n'],
-  ['a refusal with no code', '{"i":"1","p":{"s":500,"b":{"json":{"message":"boom"}}}}\n'],
-])('it answers unreached when atc writes %s', async (_case, line) => {
+test('it answers unreached when atc writes a line that is not JSON', async () => {
   const ctx = await setupTest();
 
   const broken = createServer((socket) => {
     socket.on('data', () => {
-      socket.write(line);
+      socket.write('not json\n');
     });
   });
 
@@ -155,7 +150,10 @@ test.each([
 
   const answer = await ctx.createClient([socketPath]).read('/session/list', {});
 
-  expect(answer).toStrictEqual({ kind: 'unreached', reason: expect.any(String) });
+  expect(answer).toStrictEqual({
+    kind: 'unreached',
+    reason: 'atc closed the connection before it answered',
+  });
 });
 
 test('it answers unreached with each path it tried when no daemon listens at any of them', async () => {

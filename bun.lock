@@ -39,6 +39,9 @@
       "name": "@stu/notifier-atc",
       "dependencies": {
         "@atcx/contract": "catalog:",
+        "@orpc/client": "catalog:",
+        "@orpc/standard-server": "catalog:",
+        "@orpc/standard-server-peer": "catalog:",
         "@stu/model": "workspace:*",
         "ts-pattern": "catalog:",
         "zod": "catalog:",
@@ -86,6 +89,8 @@
     "libs/model": {
       "name": "@stu/model",
       "dependencies": {
+        "@atcx/contract": "catalog:",
+        "@orpc/contract": "catalog:",
         "zod": "catalog:",
       },
     },
@@ -106,6 +111,10 @@
     "@atcx/contract": "7.17.0",
     "@commitlint/cli": "21.2.4",
     "@maschwenk/tsrslint": "0.1.6",
+    "@orpc/client": "1.16.1",
+    "@orpc/contract": "1.16.1",
+    "@orpc/standard-server": "1.16.1",
+    "@orpc/standard-server-peer": "1.16.1",
     "@stylistic/eslint-plugin": "5.10.0",
     "@tsconfig/strictest": "2.0.8",
     "@types/bun": "1.4.4",

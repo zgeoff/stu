@@ -72,10 +72,7 @@ test('it sends as a local program: a hello name outside atc/, and a message with
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
   expect(outcome).toStrictEqual({ kind: 'sent' });
-
-  expect(atc.hellos).toStrictEqual([
-    { client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } },
-  ]);
+  expect(atc.hellos).toStrictEqual([{ client: 'stu-watch/0.1.0', protocol: 14 }]);
 
   expect(atc.requests).toStrictEqual([
     {

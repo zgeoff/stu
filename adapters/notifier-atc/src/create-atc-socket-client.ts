@@ -2,11 +2,13 @@ import { once } from 'node:events';
 import { createConnection } from 'node:net';
 import type { Socket } from 'node:net';
 import { createInterface } from 'node:readline';
-import type { AtcAnswer } from '@stu/model';
+import { ORPCError, createORPCClient } from '@orpc/client';
+import { StandardRPCLink } from '@orpc/client/standard';
+import { ClientPeer } from '@orpc/standard-server-peer';
+import type { AtcAnswer, AtcInputs, AtcProcedures } from '@stu/model';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
-import { PEER_FIELDS as PEER } from './peer-fields.ts';
-import type { AtcSocketClient, AtcSocketOptions } from './types.ts';
+import type { AtcCallPath, AtcSocketClient, AtcSocketOptions } from './types.ts';
 
 // atc's protocol version, which its published contract does not export. A daemon on another
 // version refuses the hello with its own version, and the client retries once with that.
@@ -15,8 +17,8 @@ const ATC_PROTOCOL = 14;
 export function createAtcSocketClient(options: AtcSocketOptions): AtcSocketClient {
   let protocol = ATC_PROTOCOL;
 
-  const call = async (path: string, input: Readonly<Record<string, unknown>>) => {
-    const answer = await runAtcCall(options, protocol, { path, input });
+  const call = async <Path extends AtcCallPath>(path: Path, input: AtcInputs[Path]) => {
+    const answer = await runAtcCall(options, protocol, path, input);
 
     const daemonProtocol = findDaemonProtocol(answer);
 
@@ -26,38 +28,30 @@ export function createAtcSocketClient(options: AtcSocketOptions): AtcSocketClien
 
     protocol = daemonProtocol;
 
-    return runAtcCall(options, protocol, { path, input });
+    return runAtcCall(options, protocol, path, input);
   };
 
   return { read: call, write: call };
 }
 
-interface AtcCall {
-  readonly path: string;
-  readonly input: Readonly<Record<string, unknown>>;
-}
-
-async function runAtcCall(
+async function runAtcCall<Path extends AtcCallPath>(
   options: AtcSocketOptions,
   protocol: number,
-  call: AtcCall,
+  path: Path,
+  input: AtcInputs[Path],
 ): Promise<AtcAnswer> {
   const connected = await createAtcConnection(options);
 
   return match(connected)
     .with({ kind: 'unreached' }, (unreached) => unreached)
     .with({ kind: 'connected' }, async (connection) => {
-      const hello = { client: options.client, protocol, auth: { scheme: 'none' } };
+      const procedures = createAtcProcedures(connection.socket);
 
-      // A reset socket or a line that breaks the peer framing may come after the request reached
-      // atc, so it answers unreached, and the caller resends under the same key.
       try {
         return await Promise.race([
-          writeAtcCall(connection.socket, hello, call),
+          writeAtcCall(procedures, { client: options.client, protocol }, path, input),
           endCallOnTimeout(connection.socket, options.timeoutMs),
         ]);
-      } catch (error) {
-        return { kind: 'unreached' as const, reason: formatCause(error) };
       } finally {
         connection.socket.destroy();
       }
@@ -130,66 +124,94 @@ function formatCause(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function writeAtcCall(socket: Socket, hello: unknown, call: AtcCall): Promise<AtcAnswer> {
-  const lines = createInterface({ input: socket })[Symbol.asyncIterator]();
+// atc's contract over oRPC's peer messages, one JSON message per line, as atc's own clients call it.
+// A line the peer cannot read, or a socket error, ends the connection, and a call still waiting then
+// fails.
+function createAtcProcedures(socket: Socket): AtcProcedures {
+  const peer = new ClientPeer((message) => {
+    socket.write(`${String(message)}\n`);
+  });
 
-  socket.write(formatPeerLine('1', '/daemon/hello', hello));
-
-  const helloAnswer = await readPeerAnswer(lines, '1');
-
-  return match(helloAnswer)
-    .with({ kind: 'answered' }, () => {
-      socket.write(formatPeerLine('2', call.path, call.input));
-
-      return readPeerAnswer(lines, '2');
+  createInterface({ input: socket })
+    .on('line', (line) => {
+      void readPeerLine(peer, socket, line);
     })
-    .with({ kind: 'refused' }, { kind: 'unreached' }, (answer) => answer)
-    .exhaustive();
+    .on('error', () => {
+      socket.destroy();
+    });
+
+  socket.on('close', () => {
+    peer.close({ reason: new Error('atc closed the connection before it answered') });
+  });
+
+  const link = new StandardRPCLink(
+    {
+      call: async (request) => {
+        const response = await peer.request(request);
+
+        return { ...response, body: () => Promise.resolve(response.body) };
+      },
+    },
+    { url: 'http://atc' },
+  );
+
+  return createORPCClient<AtcProcedures>(link);
 }
 
-function formatPeerLine(id: string, path: string, input: unknown): string {
-  const request = {
-    [PEER.id]: id,
-    [PEER.payload]: { [PEER.path]: path, [PEER.body]: { json: input } },
-  };
-
-  return `${JSON.stringify(request)}\n`;
-}
-
-const PEER_PAYLOAD_SCHEMA = z.object({
-  // the HTTP-style status; left out for 200
-  [PEER.status]: z.number().optional(),
-  [PEER.body]: z.object({ json: z.unknown() }).optional(),
-});
-
-const PEER_ANSWER_SCHEMA = z.object({ [PEER.id]: z.string(), [PEER.payload]: PEER_PAYLOAD_SCHEMA });
-
-const PEER_ERROR_SCHEMA = z.object({
-  code: z.string(),
-  data: z.record(z.string(), z.unknown()).optional(),
-});
-
-async function readPeerAnswer(lines: AsyncIterator<string>, id: string): Promise<AtcAnswer> {
-  for (let line = await lines.next(); line.done !== true; line = await lines.next()) {
-    const message: unknown = JSON.parse(line.value);
-    const answer = PEER_ANSWER_SCHEMA.parse(message);
-
-    if (answer[PEER.id] === id) {
-      const payload = answer[PEER.payload];
-      const status = payload[PEER.status] ?? 200;
-      const body = payload[PEER.body]?.json;
-
-      if (status >= 200 && status < 300) {
-        return { kind: 'answered', body };
-      }
-
-      const refusal = PEER_ERROR_SCHEMA.parse(body);
-
-      return { kind: 'refused', code: refusal.code, data: refusal.data ?? {} };
-    }
+async function readPeerLine(peer: ClientPeer, socket: Socket, line: string): Promise<void> {
+  try {
+    await peer.message(line);
+  } catch {
+    socket.destroy();
   }
+}
 
-  return { kind: 'unreached', reason: 'atc closed the connection before it answered' };
+interface AtcHello {
+  readonly client: string;
+  readonly protocol: number;
+}
+
+type AtcCalls = {
+  readonly [Path in AtcCallPath]: (
+    procedures: AtcProcedures,
+    input: AtcInputs[Path],
+  ) => Promise<unknown>;
+};
+
+const ATC_CALLS: AtcCalls = {
+  '/session/list': (procedures, input) => procedures.session.list(input),
+  '/session/get': (procedures, input) => procedures.session.get(input),
+  '/message/get': (procedures, input) => procedures.message.get(input),
+  '/session/message': (procedures, input) => procedures.session.message(input),
+};
+
+// A reset socket or a line the peer cannot read may come after the request reached atc, so it
+// answers unreached, and the caller resends under the same key.
+async function writeAtcCall<Path extends AtcCallPath>(
+  procedures: AtcProcedures,
+  hello: AtcHello,
+  path: Path,
+  input: AtcInputs[Path],
+): Promise<AtcAnswer> {
+  try {
+    await procedures.daemon.hello(hello);
+
+    const body = await ATC_CALLS[path](procedures, input);
+
+    return { kind: 'answered', body };
+  } catch (error) {
+    return error instanceof ORPCError
+      ? { kind: 'refused', code: error.code, data: toErrorData(error.data) }
+      : { kind: 'unreached', reason: formatCause(error) };
+  }
+}
+
+const ERROR_DATA_SCHEMA = z.record(z.string(), z.unknown());
+
+function toErrorData(data: unknown): Readonly<Record<string, unknown>> {
+  const parsed = ERROR_DATA_SCHEMA.safeParse(data);
+
+  return parsed.success ? parsed.data : {};
 }
 
 function findDaemonProtocol(answer: AtcAnswer): number | null {

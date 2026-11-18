@@ -11,6 +11,8 @@
     "typecheck": "tsrs --noEmit"
   },
   "dependencies": {
+    "@atcx/contract": "catalog:",
+    "@orpc/contract": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {}

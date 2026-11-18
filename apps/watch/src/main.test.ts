@@ -87,9 +87,7 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port', a
     stderr: '',
   });
 
-  expect(atc.hellos).toStrictEqual([
-    { client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } },
-  ]);
+  expect(atc.hellos).toStrictEqual([{ client: 'stu-watch/0.1.0', protocol: 14 }]);
 
   expect(atc.stored).toStrictEqual([
     {

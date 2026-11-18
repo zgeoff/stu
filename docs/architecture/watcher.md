@@ -90,6 +90,9 @@ The daemon puts both sockets in `$XDG_RUNTIME_DIR` as its own environment sets i
 `$XDG_RUNTIME_DIR`, then the socket path that the daemon records in
 `~/.local/state/atc/daemon.json`.
 
+On that socket the notifier calls atc's procedures through the contract that `@atcx/contract`
+publishes, sent as oRPC peer messages, one JSON message per line, as atc's own clients send them.
+
 ## How atc labels the sender
 
 atc labels a message by who sent it. A program outside every atc session, whose hello gives a client
@@ -101,6 +104,7 @@ identifies the caller from the kernel first. The systemd user service runs outsi
 The notifier speaks atc's protocol version 14. A daemon on another version refuses the hello with
 its own version, and the notifier retries once with that version. A change to the hello or to the
 message request still breaks the send, and the owed message waits in the reported file until a fix.
+Raising the pinned `@atcx/contract` version shows such a change as a type error in the notifier.
 
 ## Limits
 
