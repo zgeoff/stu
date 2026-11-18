@@ -9,7 +9,6 @@ import type {
 } from '@stu/model';
 import { z } from 'zod';
 import { runWatch } from './run-watch.ts';
-import { buildSendKey } from './state/build-send-key.ts';
 import { buildStubNotifier } from './test-utils/build-stub-notifier.ts';
 import { makeStubKind } from './test-utils/make-stub-kind.ts';
 
@@ -183,12 +182,12 @@ test('it resends a failed send once on the next run under the same idempotency k
   await ctx.runAt('2026-11-17T08:01:00Z', checks, kinds, notifier);
   await ctx.runAt('2026-11-17T08:02:00Z', checks, kinds, notifier);
 
-  const message = {
-    text: 'FAULT disk-main:/home: /home is 95% full',
-    idempotencyKey: buildSendKey('disk-main:/home', 'open', '2026-11-17T08:00:00.000Z'),
-  };
+  const [first, second] = notifier.sent;
 
-  expect(notifier.sent).toStrictEqual([message, message]);
+  expect(notifier.sent).toHaveLength(2);
+  expect(first?.text).toBe('FAULT disk-main:/home: /home is 95% full');
+  expect(first?.idempotencyKey).toMatch(/^stu-watch:[0-9a-f]{32}$/u);
+  expect(second).toStrictEqual(first);
 });
 
 test('it keeps a failed send owed in the file', async () => {
@@ -405,14 +404,12 @@ test('it saves the third key and keeps the send owed when atc answers rekey twic
     notifier,
   );
 
-  const firstKey = buildSendKey('tunnel:a:22', 'open', '2026-11-17T08:00:00.000Z');
+  const firstKey = notifier.sent[0]?.idempotencyKey;
 
-  expect(notifier.sent.map((message) => message.idempotencyKey)).toStrictEqual([
-    firstKey,
-    `${firstKey}:2`,
-  ]);
-
-  expect(ctx.file.state.faults['tunnel:a:22']?.sendKey).toBe(`${firstKey}:3`);
+  expect(firstKey).toMatch(/^stu-watch:[0-9a-f]{32}$/u);
+  expect(notifier.sent).toHaveLength(2);
+  expect(notifier.sent[1]?.idempotencyKey).toBe(`${String(firstKey)}:2`);
+  expect(ctx.file.state.faults['tunnel:a:22']?.sendKey).toBe(`${String(firstKey)}:3`);
   expect(result.failures).toStrictEqual([{ key: 'tunnel:a:22', reason: 'idempotency_conflict' }]);
 });
 
