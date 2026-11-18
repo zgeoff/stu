@@ -24,7 +24,9 @@ test('it answers the token with a Prometheus vector of the firing alerts', async
   const ctx = await setupTest([{ alertname: 'DiskFull', severity: 'critical' }]);
   const answer = await ctx.readQuery('glsa_test_token');
 
-  expect({ status: answer.status, body: JSON.parse(answer.body) }).toStrictEqual({
+  const body: unknown = JSON.parse(answer.body);
+
+  expect({ status: answer.status, body }).toStrictEqual({
     status: 200,
     body: {
       status: 'success',
