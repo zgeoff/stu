@@ -1,6 +1,7 @@
 import type { Reported, ReportedFault } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
+import { findOwn } from '../find-own.ts';
 import { buildNextSendKey } from './build-next-send-key.ts';
 import { buildSendKey } from './build-send-key.ts';
 import { getFaultPhase } from './get-fault-phase.ts';
@@ -21,7 +22,7 @@ export type FaultMove =
   | { readonly to: 'rekeyed' };
 
 export function moveFault(reported: Reported, key: string, move: FaultMove): Reported {
-  const held = reported.faults[key];
+  const held = findOwn(reported.faults, key);
   const from = getFaultPhase(held);
 
   invariant(canMoveFault(from, move.to), `fault ${key} cannot move from ${from} to ${move.to}`);

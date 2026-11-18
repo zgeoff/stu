@@ -1,6 +1,7 @@
 import type { Reported, SendOutcome } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
+import { findOwn } from '../find-own.ts';
 import { moveFault } from '../state/move-fault.ts';
 
 // What a key's owed send came to, and the file that follows. failed keeps the send key; resend and
@@ -18,7 +19,7 @@ export function pickSendStep(
   outcome: SendOutcome,
   triesLeft: number,
 ): SendStep {
-  const fault = reported.faults[key];
+  const fault = findOwn(reported.faults, key);
 
   invariant(fault !== undefined && fault.sendKey !== null, `fault ${key} owes no send`);
 

@@ -2,6 +2,7 @@ import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
+import { findOwn } from './find-own.ts';
 import { formatFaultMessage } from './run/format-fault-message.ts';
 import { isDue } from './run/is-due.ts';
 import { pickChanges } from './run/pick-changes.ts';
@@ -36,7 +37,7 @@ interface Ledger {
 
 export async function runWatch(run: WatchRun): Promise<WatchResult> {
   const due = run.checks.filter((check) =>
-    isDue(check, run.state.lastRun[check.id], run.at.epochMilliseconds),
+    isDue(check, findOwn(run.state.lastRun, check.id), run.at.epochMilliseconds),
   );
 
   const outcomes = await Promise.all(due.map((check) => runCheck(check, run.kinds)));
@@ -70,7 +71,7 @@ export async function runWatch(run: WatchRun): Promise<WatchResult> {
 
 async function runCheck(check: CheckConfig, kinds: KindTable): Promise<CheckOutcome> {
   const { id, kind: kindName, everyMin: _, ...params } = check;
-  const kind = kinds[kindName];
+  const kind = findOwn(kinds, kindName);
 
   if (kind === undefined) {
     return { kind: 'threw', check: id, reason: `no kind named ${kindName}` };
@@ -116,7 +117,7 @@ async function writeOwedMessage(
   key: string,
   triesLeft = MAX_TRIES,
 ): Promise<void> {
-  const fault = ledger.state.faults[key];
+  const fault = findOwn(ledger.state.faults, key);
 
   invariant(fault !== undefined && fault.sendKey !== null, `fault ${key} owes no send`);
 

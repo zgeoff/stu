@@ -287,6 +287,40 @@ test('it opens a cannot-run fault for a check whose kind is not in the table', a
   ]);
 });
 
+test('it opens a cannot-run fault for a check whose kind names a member every object inherits', async () => {
+  const ctx = setupTest();
+
+  await ctx.runAt('2026-11-17T08:00:00Z', [{ id: 'web', kind: 'toString' }], {}, ctx.notifier);
+
+  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+    'FAULT web: cannot run: no kind named toString',
+  ]);
+});
+
+test('it runs a check whose id names a member every object inherits', async () => {
+  const ctx = setupTest();
+  const kind = makeStubKind([[]]);
+
+  await ctx.runAt(
+    '2026-11-17T08:00:00Z',
+    [{ id: 'constructor', kind: 'disk', everyMin: 15 }],
+    { disk: kind },
+    ctx.notifier,
+  );
+
+  expect(kind).toHaveBeenCalledTimes(1);
+});
+
+test('it opens a cannot-run fault keyed by a check id that names a member every object inherits', async () => {
+  const ctx = setupTest();
+
+  await ctx.runAt('2026-11-17T08:00:00Z', [{ id: 'constructor', kind: 'htp' }], {}, ctx.notifier);
+
+  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+    'FAULT constructor: cannot run: no kind named htp',
+  ]);
+});
+
 test('it runs a check with everyMin 15 once over 15 one-minute runs', async () => {
   const ctx = setupTest();
   const kind = makeStubKind([[]]);

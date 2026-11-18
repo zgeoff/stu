@@ -1,5 +1,6 @@
 import type { Fault, Reported } from '@stu/model';
 import { match } from 'ts-pattern';
+import { findOwn } from '../find-own.ts';
 import { getFaultPhase } from '../state/get-fault-phase.ts';
 import { moveFault } from '../state/move-fault.ts';
 
@@ -35,7 +36,7 @@ function pickCheckChanges(reported: Reported, outcome: CheckOutcome, at: string)
   return match(outcome)
     .with({ kind: 'ran' }, (ran) => pickRanChanges(reported, ran, at))
     .with({ kind: 'threw' }, (threw) =>
-      reported.faults[threw.check] === undefined
+      findOwn(reported.faults, threw.check) === undefined
         ? moveFault(reported, threw.check, {
             to: 'opening',
             check: threw.check,
@@ -67,7 +68,7 @@ function pickRanChanges(
     .reduce((next, [key]) => pickClearIfOpen(next, key), reported);
 
   return [...seen]
-    .filter(([key]) => cleared.faults[key] === undefined)
+    .filter(([key]) => findOwn(cleared.faults, key) === undefined)
     .reduce(
       (next, [key, line]) =>
         moveFault(next, key, { to: 'opening', check: ran.check, line, since: at }),
@@ -78,7 +79,7 @@ function pickRanChanges(
 // A fault whose open stu may not have yet keeps owing it: its recovery waits for atc to take the
 // open, because the open may have reached stu with its reply lost.
 function pickClearIfOpen(reported: Reported, key: string): Reported {
-  return match(getFaultPhase(reported.faults[key]))
+  return match(getFaultPhase(findOwn(reported.faults, key)))
     .with('open', () => moveFault(reported, key, { to: 'clearing' }))
     .with('opening', 'clearing', 'gone', () => reported)
     .exhaustive();
