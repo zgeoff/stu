@@ -28,20 +28,24 @@ export function buildStubFetch(routes: Readonly<Record<string, readonly (Respons
       body: typeof init.body === 'string' ? init.body : '',
     });
 
-    const next = queues.get(url.pathname);
-
-    if (next === undefined) {
-      return Promise.reject(new Error(`the stub fetch has no answers for ${url.pathname}`));
-    }
-
-    try {
-      const answer = next();
-
-      return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
-    } catch (error) {
-      return Promise.reject(error);
-    }
+    return Promise.try(() => takeAnswer(queues, url));
   };
 
   return { fetch: answerRequest, requests };
+}
+
+function takeAnswer(queues: ReadonlyMap<string, () => Response | Error>, url: URL): Response {
+  const next = queues.get(url.pathname);
+
+  if (next === undefined) {
+    throw new Error(`the stub fetch has no answers for ${url.pathname}`);
+  }
+
+  const answer = next();
+
+  if (answer instanceof Error) {
+    throw answer;
+  }
+
+  return answer;
 }
