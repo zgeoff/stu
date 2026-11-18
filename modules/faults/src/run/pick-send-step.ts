@@ -11,7 +11,7 @@ export type SendStep =
   | { readonly kind: 'resend'; readonly state: Reported }
   | { readonly kind: 'gave-up'; readonly state: Reported; readonly reason: string };
 
-// triesLeft counts this send among the tries.
+// The tries left count this send among them.
 export function pickSendStep(
   reported: Reported,
   key: string,
