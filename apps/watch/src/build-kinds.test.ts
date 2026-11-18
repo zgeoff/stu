@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHostLinux } from '@stu/host-linux';
 import { createProbeNet } from '@stu/probe-net';
+import { startStubHTTP } from '@stu/probe-net/test-utils/start-stub-http';
+import { startStubTCP } from '@stu/probe-net/test-utils/start-stub-tcp';
 import { buildKinds } from './build-kinds.ts';
 import { readWatchConfig } from './read-watch-config.ts';
 
@@ -29,8 +31,8 @@ async function setupTest() {
   };
 }
 
-// The example's hosts are placeholders that never answer, so the net checks see faults; the test
-// shows that each kind takes the params the example gives it.
+// The example's hosts are placeholders, so the net checks go to local servers instead, which keeps
+// the test off the network; every other param is the example's.
 test('it runs every check of the example config without a throw', async () => {
   const ctx = await setupTest();
 
@@ -48,11 +50,27 @@ test('it runs every check of the example config without a throw', async () => {
     join(import.meta.dir, '..', 'stu-watch.config.example.json'),
   );
 
+  const tcp = await startStubTCP();
+
+  onTestFinished(() => tcp.stop());
+
+  const http = await startStubHTTP(200);
+
+  onTestFinished(() => http.stop());
+
+  const localTargets: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
+    tcp: { host: '127.0.0.1', port: tcp.port },
+    http: { url: `http://127.0.0.1:${http.port}/health` },
+  };
+
   const runs = Promise.all(
     config.checks.map((check) => {
       const { id: _id, kind, everyMin: _everyMin, ...params } = check;
 
-      return ctx.kinds[kind]?.(params) ?? Promise.reject(new Error(`no kind named ${kind}`));
+      return (
+        ctx.kinds[kind]?.({ ...params, ...localTargets[kind] }) ??
+        Promise.reject(new Error(`no kind named ${kind}`))
+      );
     }),
   );
 
