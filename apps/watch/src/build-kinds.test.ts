@@ -187,12 +187,15 @@ test('it gives the stuck session kind the last activity atc reads for each sessi
 test('it gives the stuck session kind no fault for a session active within stuckMin', async () => {
   const ctx = await setupTest();
 
-  const kinds = await ctx.createKinds([
-    {
-      descriptor: buildMockSessionDescriptor({ id: 's3-p7w2c', name: 'busy-lane' }),
-      lastActivityAt: 1_794_900_000_000 - 10 * 60_000,
-    },
-  ]);
+  const kinds = await ctx.createKinds(
+    [
+      {
+        descriptor: buildMockSessionDescriptor({ id: 's3-p7w2c', name: 'busy-lane' }),
+        lastActivityAt: 1_794_900_000_000 - 10 * 60_000,
+      },
+    ],
+    'http://127.0.0.1:9/v1/messages',
+  );
 
   const faults = await kinds['session-stuck']?.({ stuckMin: 30 });
 
