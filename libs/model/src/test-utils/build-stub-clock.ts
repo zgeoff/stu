@@ -42,8 +42,8 @@ export function buildStubClock(startMs: number) {
     next.pass();
   };
 
-  // Lets the code run up to its next sleep, then passes that sleep, until the work settles. Code
-  // that waits on real I/O between sleeps needs passNextSleep, since this can't wait on it.
+  // Lets the code run up to its next sleep, then passes that sleep, until the work settles. It
+  // can't wait on real I/O, so a test whose code waits on I/O between sleeps passes each one itself.
   const passSleepsUntilSettled = async (work: Promise<unknown>) => {
     const tracker = { isSettled: false };
 
