@@ -27,7 +27,9 @@ None.
 - Start [`start-stub-atc.ts`](../../../adapters/notifier-atc/src/test-utils/start-stub-atc.ts) of
   `@stu/notifier-atc` for a test that sends to the atc daemon. Then seed `daemon.json` with the
   stub's `socketPath`, through the `daemonRecord` seeder of the same package. The code under test
-  finds the daemon through that file.
+  finds the daemon through that file. Keep the stub for an answer that a real daemon can't be made
+  to give, such as `outcome_unknown`. The `fault-messages` journey of the
+  [`verify`](../verify/SKILL.md) skill sends through a real daemon.
 - Start [`start-stub-http.ts`](../../../adapters/probe-net/src/test-utils/start-stub-http.ts) or
   [`start-stub-tcp.ts`](../../../adapters/probe-net/src/test-utils/start-stub-tcp.ts) of
   `@stu/probe-net` for a test of an HTTP or TCP probe.

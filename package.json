@@ -25,6 +25,8 @@
       "@stylistic/eslint-plugin": "5.10.0",
       "@tsconfig/strictest": "2.0.8",
       "@types/bun": "1.4.4",
+      "@wringer/core": "0.3.1",
+      "@wringer/gunshi": "0.3.5",
       "@zgeoff/agent-hooks": "0.2.12",
       "@zgeoff/bun-test-extended": "0.2.3",
       "@zgeoff/chex": "0.3.4",
@@ -71,7 +73,10 @@
     "check:dependency-gates": "bun scripts/dependency-gates/run-dependency-gates-check.ts",
     "check:workflows": "bun scripts/run-workflows-check.ts",
     "check:uncommitted": "bun scripts/run-uncommitted-check.ts",
-    "memory-capped": "bash scripts/run-memory-capped.sh \"$(bun scripts/read-memory-budget.ts)\""
+    "memory-capped": "bash scripts/run-memory-capped.sh \"$(bun scripts/read-memory-budget.ts)\"",
+    "verify": "bun apps/verify/src/verify.ts",
+    "verify:lint": "bun apps/verify/src/verify.ts lint",
+    "ci:verify-gate": "bun scripts/verify-gate/run-verify-gate.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
@@ -91,9 +96,11 @@
     "lefthook": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "ts-pattern": "catalog:",
     "tsrs": "catalog:",
     "turbo": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   },
   "engines": {
     "node": ">=24"
