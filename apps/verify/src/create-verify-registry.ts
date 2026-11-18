@@ -1,0 +1,62 @@
+import { join } from 'node:path';
+import { createWringer, local } from '@wringer/core';
+import type { LaunchPlan, Wringer } from '@wringer/core';
+import { z } from 'zod';
+import { checkDaemon } from './daemon/check-daemon.ts';
+import { featurePaths, ignoredPaths, sharedPaths } from './feature-paths.ts';
+import { INBOX_MESSAGE_SCHEMA, readInbox } from './inbox/read-inbox.ts';
+import { parseRunEndpoints } from './run/parse-run-endpoints.ts';
+import { runWatch } from './watch/run-watch.ts';
+
+export function createVerifyRegistry(): Wringer {
+  return createWringer({ name: 'stu-verify' })
+    .target('local', {
+      mode: 'launch',
+      access: 'read-write',
+      host: local(),
+      launch: createLaunchPlan,
+    })
+    .action({
+      name: 'run-watch',
+      summary:
+        "Run the watcher once, with one tcp check on the run's probe port, while that port is closed or open",
+      effect: 'write',
+      targets: ['local'],
+      input: z.strictObject({ port: z.enum(['closed', 'open']) }),
+      data: z.strictObject({ stdout: z.string() }),
+      timeoutMs: 60_000,
+      run: (input, ctx) => runWatch(ctx, input.port),
+    })
+    .command({
+      path: ['inbox'],
+      summary: "Read every message on the run's inbox session, oldest first",
+      effect: 'read',
+      args: z.strictObject({}),
+      data: z.strictObject({ messages: z.array(INBOX_MESSAGE_SCHEMA) }),
+      run: (_args, ctx) => readInbox(parseRunEndpoints(ctx.endpoints)),
+    })
+    .check({
+      name: 'daemon',
+      targets: ['local'],
+      input: z.strictObject({}),
+      data: z.strictObject({ socket: z.string(), session: z.string() }),
+      timeoutMs: 10_000,
+      run: (_input, ctx) => checkDaemon(parseRunEndpoints(ctx.endpoints)),
+    })
+    .feature({
+      name: 'fault-messages',
+      summary: 'A fault, then its recovery, reach an atc session as two messages from stu-watch',
+      paths: featurePaths['fault-messages'],
+    })
+    .shared(...sharedPaths)
+    .ignore(...ignoredPaths)
+    .build();
+}
+
+// The launcher prints the ready line once the daemon answers and the inbox session runs.
+function createLaunchPlan(): LaunchPlan {
+  return {
+    command: [process.execPath, join(import.meta.dir, 'daemon', 'run-local-daemon.ts')],
+    ready: (line) => (line['event'] === 'ready' ? parseRunEndpoints(line) : null),
+  };
+}

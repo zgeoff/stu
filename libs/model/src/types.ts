@@ -65,6 +65,7 @@ export type AtcProcedures = Omit<ContractRouterClient<typeof DAEMON_CONTRACT>, '
 export interface AtcReadProcedures {
   readonly session: Pick<AtcProcedures['session'], 'list' | 'get'>;
   readonly message: Pick<AtcProcedures['message'], 'get'>;
+  readonly events: Pick<AtcProcedures['events'], 'read'>;
 }
 
 // unreached: no daemon answered, so the call may not have reached atc at all

@@ -25,6 +25,8 @@
       "@stylistic/eslint-plugin": "5.10.0",
       "@tsconfig/strictest": "2.0.8",
       "@types/bun": "1.4.4",
+      "@wringer/core": "0.3.1",
+      "@wringer/gunshi": "0.3.5",
       "@zgeoff/agent-hooks": "0.2.12",
       "@zgeoff/bun-test-extended": "0.2.3",
       "@zgeoff/chex": "0.3.6",
@@ -70,7 +72,10 @@
     "check:test-timeouts": "chex test-timeouts",
     "check:dependency-gates": "chex dependency-gates",
     "check:workflows": "chex workflows",
-    "check:uncommitted": "chex uncommitted"
+    "check:uncommitted": "chex uncommitted",
+    "verify": "bun apps/verify/src/verify.ts",
+    "verify:lint": "bun apps/verify/src/verify.ts lint",
+    "ci:verify-gate": "bun scripts/verify-gate/run-verify-gate.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",
@@ -91,9 +96,11 @@
     "lefthook": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "ts-pattern": "catalog:",
     "tsrs": "catalog:",
     "turbo": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "zod": "catalog:"
   },
   "engines": {
     "node": ">=24"
