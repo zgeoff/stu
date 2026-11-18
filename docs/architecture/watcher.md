@@ -30,7 +30,9 @@ as a run, so a slow kind keeps its interval while it fails.
 
 The kinds get read-only ports, and no kind's package depends on the notifier, so no kind can send
 stu a message. The session kinds read atc through a port that offers only reads. The quota kind runs
-`op` through a port that returns the exit code and stdout and drops stderr.
+`op` through a port that returns the exit code and stdout and drops stderr. The alert and quota
+kinds call HTTP through a `fetch` port that the app passes in, so a test answers their requests
+without a server.
 
 ## The alert and quota kinds
 
