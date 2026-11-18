@@ -133,5 +133,6 @@ Everything pushed here is public, including commit messages and PR descriptions.
   Remove each match. Search your PR description for the same strings before you open the PR. When a
   match is already in a commit on your branch, rewrite that commit before you push.
 
-Reply with the pull request link and its CI state. When unmerged work blocked you, reply with that
-pull request or issue.
+Reply with the pull request link and its CI state. When the pull request changes a feature's files,
+add what the `verify` skill's reply asks for: each feature you could not verify. When unmerged work
+blocked you, reply with that pull request or issue.
