@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { runWatch } from '@stu/faults';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
 import type { FetchHTTP, Reported } from '@stu/model';
+import { buildStubClock } from '@stu/model/test-utils/build-stub-clock';
 import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
 import { makeAxiomAlertsKind } from './make-axiom-alerts-kind.ts';
 
@@ -11,11 +12,15 @@ function setupTest() {
   const notifier = buildStubNotifier([{ kind: 'sent' }]);
   const readNowMs = () => clock.nowMs;
 
+  // the kind's sleeps, which move their own time from 0
+  const timers = buildStubClock(0);
+
   return {
     clock,
+    timers,
     notifier,
     readFaults: (fetch: FetchHTTP, params: Readonly<Record<string, unknown>>) =>
-      makeAxiomAlertsKind({ fetch, readNowMs })(params),
+      makeAxiomAlertsKind({ fetch, readNowMs, sleepMs: timers.sleepMs })(params),
     runAt: async (at: string, fetch: FetchHTTP) => {
       clock.nowMs = Temporal.Instant.from(at).epochMilliseconds;
 
@@ -29,7 +34,9 @@ function setupTest() {
             token: 'xaat-test-token',
           },
         ],
-        kinds: { 'alerts-axiom': makeAxiomAlertsKind({ fetch, readNowMs }) },
+        kinds: {
+          'alerts-axiom': makeAxiomAlertsKind({ fetch, readNowMs, sleepMs: timers.sleepMs }),
+        },
         state: file.state,
         at: Temporal.Instant.from(at),
         notifier,
@@ -191,4 +198,136 @@ test('it throws without the url when Axiom gives no answer', () => {
   });
 
   expect(faults).rejects.toThrowWithMessage(Error, /^axiom gave no answer for monitors \(\w+\)$/u);
+});
+
+test('it reads ten histories that each wait until four are in flight, never more than four at once', async () => {
+  const ctx = setupTest();
+  const ids = Array.from({ length: 10 }, (_, index) => `mon_${String(index + 1).padStart(2, '0')}`);
+  const fourInFlight = Promise.withResolvers<void>();
+  const inFlight = { now: 0, most: 0 };
+
+  const heldFetch: FetchHTTP = async (url) => {
+    if (url.pathname === '/v2/monitors') {
+      return Response.json(ids.map((id) => ({ id, name: `Errors ${id}`, type: 'Threshold' })));
+    }
+
+    inFlight.now += 1;
+    inFlight.most = Math.max(inFlight.most, inFlight.now);
+
+    if (inFlight.now === 4) {
+      fourInFlight.resolve();
+    }
+
+    await fourInFlight.promise;
+
+    inFlight.now -= 1;
+
+    return Response.json([{ state: 'open', timestamp: '2026-11-17T07:58:00Z' }]);
+  };
+
+  const faults = await ctx.readFaults(heldFetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
+
+  expect([faults, inFlight.most]).toStrictEqual([
+    ids.map((id) => ({
+      key: id,
+      line: `Axiom monitor "Errors ${id}" triggered at 2026-11-17T07:58:00Z`,
+    })),
+    4,
+  ]);
+});
+
+test('it throws naming a monitor at its 10-second limit when twenty histories hang', async () => {
+  const ctx = setupTest();
+  const ids = Array.from({ length: 20 }, (_, index) => `mon_${String(index + 1).padStart(2, '0')}`);
+
+  const axiom = buildStubFetch({
+    '/v2/monitors': [
+      Response.json(ids.map((id) => ({ id, name: `Errors ${id}`, type: 'Threshold' }))),
+    ],
+    ...Object.fromEntries(ids.map((id) => [`/v2/monitors/${id}/history`, ['hang' as const]])),
+  });
+
+  const faults = ctx.readFaults(axiom.fetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
+
+  await ctx.timers.passSleepsUntilSettled(faults);
+
+  expect(faults).rejects.toThrowWithMessage(
+    Error,
+    'axiom gave no answer for history of mon_01 (TimeoutError)',
+  );
+
+  expect(ctx.timers.readNowMs()).toBe(10_000);
+});
+
+test('it throws naming a monitor at its 25-second deadline when each history answers in 9 seconds', async () => {
+  const ctx = setupTest();
+  const ids = Array.from({ length: 20 }, (_, index) => `mon_${String(index + 1).padStart(2, '0')}`);
+
+  const slowFetch: FetchHTTP = async (url, init) => {
+    if (url.pathname === '/v2/monitors') {
+      return Response.json(ids.map((id) => ({ id, name: `Errors ${id}`, type: 'Threshold' })));
+    }
+
+    await ctx.timers.sleepMs(9000, init.signal ?? new AbortController().signal);
+
+    return Response.json([]);
+  };
+
+  const faults = ctx.readFaults(slowFetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
+
+  await ctx.timers.passSleepsUntilSettled(faults);
+
+  expect(faults).rejects.toThrowWithMessage(
+    Error,
+    'axiom gave no answer for history of mon_09 (TimeoutError)',
+  );
+
+  expect(ctx.timers.readNowMs()).toBe(25_000);
+});
+
+test('it starts no history read after one fails', async () => {
+  const ctx = setupTest();
+  const ids = Array.from({ length: 6 }, (_, index) => `mon_${String(index + 1).padStart(2, '0')}`);
+  const failed = Promise.withResolvers<void>();
+  const asked: string[] = [];
+
+  const heldFetch: FetchHTTP = async (url) => {
+    if (url.pathname === '/v2/monitors') {
+      return Response.json(ids.map((id) => ({ id, name: `Errors ${id}`, type: 'Threshold' })));
+    }
+
+    asked.push(url.pathname);
+
+    if (url.pathname === '/v2/monitors/mon_01/history') {
+      return new Response(null, { status: 502 });
+    }
+
+    await failed.promise;
+
+    return Response.json([]);
+  };
+
+  const faults = ctx.readFaults(heldFetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
+
+  await faults.catch(() => failed.resolve());
+  await ctx.timers.passSleepsUntilSettled(Promise.resolve());
+
+  expect(asked).toStrictEqual([
+    '/v2/monitors/mon_01/history',
+    '/v2/monitors/mon_02/history',
+    '/v2/monitors/mon_03/history',
+    '/v2/monitors/mon_04/history',
+  ]);
 });

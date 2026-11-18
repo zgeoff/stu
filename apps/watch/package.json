@@ -18,5 +18,8 @@
     "@stu/quota-anthropic": "workspace:*",
     "@stu/sessions-atc": "workspace:*",
     "@stu/state-file": "workspace:*"
+  },
+  "devDependencies": {
+    "@zgeoff/testing": "catalog:"
   }
 }

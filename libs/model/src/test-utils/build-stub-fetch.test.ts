@@ -48,3 +48,15 @@ test('it records the method, path, query, headers and body of each request', asy
     { method: 'POST', target: '/a?x=1', headers: { 'x-test': 'yes' }, body: 'hi' },
   ]);
 });
+
+test('it rejects a hang answer with the reason of its signal once the signal aborts', () => {
+  const stub = buildStubFetch({ '/a': ['hang'] });
+
+  const request = new AbortController();
+
+  const answer = stub.fetch(new URL('https://api.example.invalid/a'), { signal: request.signal });
+
+  request.abort(new DOMException('no answer in time', 'TimeoutError'));
+
+  expect(answer).rejects.toThrowWithMessage(DOMException, 'no answer in time');
+});

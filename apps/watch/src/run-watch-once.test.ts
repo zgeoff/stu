@@ -4,11 +4,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { makeAxiomAlertsKind } from '@stu/alerts-axiom';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { Fault } from '@stu/model';
+import { buildStubClock } from '@stu/model/test-utils/build-stub-clock';
+import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
 import { createAtcNotifier, createAtcSocketClient } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { readReported, writeReported } from '@stu/state-file';
+import { waitFor } from '@zgeoff/testing/helpers';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
 import type { WatchOnce } from './run-watch-once.ts';
@@ -220,4 +224,62 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
   ]);
 
   expect(stored.faults['tunnel:b:22']?.owed).toBe('open');
+});
+
+test.each([
+  {
+    what: 'monitors',
+    hungPath: '/v2/monitors',
+    routes: { '/v2/monitors': ['hang' as const] },
+  },
+  {
+    what: 'history of mon_b2',
+    hungPath: '/v2/monitors/mon_b2/history',
+    routes: {
+      '/v2/monitors': [Response.json([{ id: 'mon_b2', name: 'API errors', type: 'Threshold' }])],
+      '/v2/monitors/mon_b2/history': ['hang' as const],
+    },
+  },
+])('it names what Axiom never answers, $what, inside the 30-second check timeout', async (row) => {
+  const ctx = await setupTest();
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      {
+        id: 'axiom',
+        kind: 'alerts-axiom',
+        apiURL: 'https://api.example.invalid',
+        token: 'xaat-test-token',
+      },
+    ],
+  });
+
+  const clock = buildStubClock(Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds);
+  const axiom = buildStubFetch(row.routes);
+
+  const run = ctx.run({
+    configPath,
+    kinds: {
+      'alerts-axiom': makeAxiomAlertsKind({
+        fetch: axiom.fetch,
+        readNowMs: clock.readNowMs,
+        sleepMs: clock.sleepMs,
+      }),
+    },
+    at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
+    readNowMs: clock.readNowMs,
+    sleepMs: clock.sleepMs,
+  });
+
+  await waitFor(() => {
+    expect(axiom.requests.at(-1)?.target).toStartWith(row.hungPath);
+  });
+
+  clock.passNextSleep();
+
+  await run;
+
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
+    `FAULT axiom: cannot run: axiom gave no answer for ${row.what} (TimeoutError)`,
+  ]);
 });

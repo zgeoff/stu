@@ -66,6 +66,12 @@ of any other monitor, because its newest notification can stay `open` after its 
 monitor type the kind doesn't know makes it throw. A monitor open for longer than the kind's history
 window with no new notification reads as resolved.
 
+`alerts-axiom` reads the monitor list, then at most 4 histories at a time, so a run sends Axiom a
+small burst however many monitors it has. Each request has its own time limit, and the whole kind
+has a deadline. Both end the kind before the watcher's check timeout, so a request that hangs fails
+with a message that names what it read: the monitor list or one monitor's history. When one history
+read fails, the kind throws and starts no other history read.
+
 `quota-anthropic` reads every slot at once, each slot's token with `op read` and then its use,
 because one `op read` can take several seconds and the check has a time limit. A slot is over its
 limit when its `7d` use is at or above `sevenPct`, and each slot over its line gives one fault. The
