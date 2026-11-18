@@ -1,0 +1,22 @@
+{
+  "name": "@stu/faults",
+  "private": true,
+  "description": "The watcher's engine: which checks are due, what changed, and the message stu owes for each change",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@stu/model": "workspace:*",
+    "tiny-invariant": "catalog:",
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@zgeoff/testing": "catalog:"
+  }
+}

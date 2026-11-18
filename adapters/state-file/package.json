@@ -1,0 +1,15 @@
+{
+  "name": "@stu/state-file",
+  "private": true,
+  "description": "The reported file: read, and written to a temp file then renamed",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@stu/model": "workspace:*"
+  }
+}

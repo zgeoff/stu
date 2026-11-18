@@ -1,0 +1,10 @@
+[Unit]
+Description=stu-watch: one run of every due check
+
+[Service]
+Type=oneshot
+# A run that outlives this is stopped, so the next tick can start a fresh one.
+TimeoutStartSec=50s
+# The folder of your stu clone. Change it when the clone lives elsewhere.
+WorkingDirectory=%h/stu
+ExecStart=%h/.bun/bin/bun apps/watch/src/main.ts apps/watch/stu-watch.config.json

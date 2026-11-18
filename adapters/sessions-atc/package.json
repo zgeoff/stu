@@ -1,0 +1,22 @@
+{
+  "name": "@stu/sessions-atc",
+  "private": true,
+  "description": "The dead and stuck session kinds, read through a read-only atc port",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@atcx/contract": "catalog:",
+    "@stu/model": "workspace:*",
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@orpc/client": "catalog:"
+  }
+}

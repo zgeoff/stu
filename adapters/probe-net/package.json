@@ -1,0 +1,19 @@
+{
+  "name": "@stu/probe-net",
+  "private": true,
+  "description": "The tcp and http kinds",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@stu/model": "workspace:*",
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {}
+}

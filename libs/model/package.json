@@ -1,0 +1,19 @@
+{
+  "name": "@stu/model",
+  "private": true,
+  "description": "The types, the config schema and the port types that stu's packages share",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@atcx/contract": "catalog:",
+    "@orpc/contract": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {}
+}
