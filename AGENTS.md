@@ -135,4 +135,4 @@ Everything pushed here is public, including commit messages and PR descriptions.
   Remove each match. Search your PR description for the same strings before you open the PR. When a
   match is already in a commit on your branch, rewrite that commit before you push.
 
-**Reply:** the pull request link and its CI state. When a pull request or issue the task depends on stopped you, name it instead.
+**Reply:** the pull request link and its CI state. When the pull request changes a feature's files, add what the `verify` skill's reply asks for: each feature you could not verify. When a pull request or issue the task depends on stopped you, name it instead.
