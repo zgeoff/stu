@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { buildMockDaemonRecord } from './build-mock-daemon-record.ts';
 
-test('it builds a record with a pid, a socket path and a protocol', () => {
+test('it builds a default daemon record', () => {
   const record = buildMockDaemonRecord();
 
   expect(record).toStrictEqual({
@@ -11,8 +11,12 @@ test('it builds a record with a pid, a socket path and a protocol', () => {
   });
 });
 
-test('it takes the overrides it is given', () => {
+test('it applies overrides on top of the defaults', () => {
   const record = buildMockDaemonRecord({ socketPath: '/tmp/stu-test/state/atc-daemon.sock' });
 
-  expect(record.socketPath).toBe('/tmp/stu-test/state/atc-daemon.sock');
+  expect(record).toStrictEqual({
+    pid: 4242,
+    socketPath: '/tmp/stu-test/state/atc-daemon.sock',
+    protocol: 14,
+  });
 });
