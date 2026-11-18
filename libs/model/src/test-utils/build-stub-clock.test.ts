@@ -13,7 +13,7 @@ test('it passes the sleep that ends first, and moves the clock to its end', () =
   expect(clock.readNowMs()).toBe(1200);
 });
 
-test('it rejects a sleep with its signal reason once the signal aborts, and never passes it', async () => {
+test('it rejects a sleep with its signal reason once the signal aborts, and never passes it', () => {
   const clock = buildStubClock(0);
 
   const stop = new AbortController();
@@ -24,10 +24,8 @@ test('it rejects a sleep with its signal reason once the signal aborts, and neve
   stop.abort(new Error('stopped'));
   clock.passNextSleep();
 
-  expect([await sleep.catch((error: unknown) => error), clock.readNowMs()]).toStrictEqual([
-    new Error('stopped'),
-    300,
-  ]);
+  expect(sleep).rejects.toThrowWithMessage(Error, 'stopped');
+  expect(clock.readNowMs()).toBe(300);
 });
 
 test('it passes sleeps until the work settles', async () => {
@@ -46,7 +44,8 @@ test('it passes sleeps until the work settles', async () => {
 
   await clock.passSleepsUntilSettled(work);
 
-  expect([await work, clock.readNowMs()]).toStrictEqual([200, 200]);
+  expect(work).resolves.toBe(200);
+  expect(clock.readNowMs()).toBe(200);
 });
 
 test('it throws when the test passes a sleep and none is waiting', () => {

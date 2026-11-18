@@ -141,10 +141,8 @@ test('it asks for no history of a disabled, a skip-resolved or a MatchEvent moni
     token: 'xaat-test-token',
   });
 
-  expect([faults, axiom.requests.map((request) => request.target)]).toStrictEqual([
-    [],
-    ['/v2/monitors'],
-  ]);
+  expect(faults).toStrictEqual([]);
+  expect(axiom.requests.map((request) => request.target)).toStrictEqual(['/v2/monitors']);
 });
 
 test('it throws for a monitor type it does not know', () => {
@@ -230,13 +228,14 @@ test('it reads ten histories that each wait until four are in flight, never more
     token: 'xaat-test-token',
   });
 
-  expect([faults, inFlight.most]).toStrictEqual([
+  expect(faults).toStrictEqual(
     ids.map((id) => ({
       key: id,
       line: `Axiom monitor "Errors ${id}" triggered at 2026-11-17T07:58:00Z`,
     })),
-    4,
-  ]);
+  );
+
+  expect(inFlight.most).toBe(4);
 });
 
 test('it throws naming a monitor at its 10-second limit when twenty histories hang', async () => {
