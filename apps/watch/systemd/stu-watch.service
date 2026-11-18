@@ -7,4 +7,6 @@ Type=oneshot
 TimeoutStartSec=50s
 # The folder of your stu clone. Change it when the clone lives elsewhere.
 WorkingDirectory=%h/stu
+# Holds OP_SERVICE_ACCOUNT_TOKEN, which op reads the config's op:// references with.
+EnvironmentFile=-%h/.config/stu-watch/env
 ExecStart=%h/.bun/bin/bun apps/watch/src/main.ts apps/watch/stu-watch.config.json

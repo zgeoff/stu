@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readWatchConfig } from './read-watch-config.ts';
@@ -16,13 +16,13 @@ async function setupTest() {
   };
 }
 
-test('it loads the committed example config, which names only placeholder hosts, session and secrets', async () => {
+test('it loads the committed example config, which names only placeholder hosts and session, and op:// references for its secrets', async () => {
   const examplePath = join(import.meta.dir, '..', 'stu-watch.config.example.json');
 
   const config = await readWatchConfig(examplePath);
 
   expect(config).toStrictEqual({
-    atc: { session: 's0-stu-session-id' },
+    notify: { kind: 'atc', session: 's0-stu-session-id' },
     statePath: join(import.meta.dir, '..', 'stu-watch.reported.json'),
     checks: [
       { id: 'memory', kind: 'memory', minAvailablePct: 10, maxFullAvg60: 20 },
@@ -38,26 +38,25 @@ test('it loads the committed example config, which names only placeholder hosts,
         everyMin: 1,
         grafanaURL: 'https://grafana.example.invalid',
         datasourceUID: 'PROMETHEUS_UID',
-        token: 'GRAFANA_VIEWER_TOKEN',
+        token: 'op://VAULT_ID/ITEM_ID_GRAFANA/credential',
       },
       {
         id: 'axiom',
         kind: 'alerts-axiom',
         everyMin: 5,
         apiURL: 'https://api.axiom.co',
-        token: 'AXIOM_API_TOKEN',
+        token: 'op://VAULT_ID/ITEM_ID_AXIOM/credential',
       },
       {
         id: 'claude-quota',
         kind: 'quota-anthropic',
         everyMin: 30,
-        opServiceAccountToken: 'OP_SERVICE_ACCOUNT_TOKEN',
         sevenPct: 85,
         slots: [
-          { id: 'slot-a', tokenRef: 'op://VAULT_ID/ITEM_ID_A/credential' },
-          { id: 'slot-b', tokenRef: 'op://VAULT_ID/ITEM_ID_B/credential' },
-          { id: 'slot-c', tokenRef: 'op://VAULT_ID/ITEM_ID_C/credential' },
-          { id: 'slot-d', tokenRef: 'op://VAULT_ID/ITEM_ID_D/credential' },
+          { id: 'slot-a', token: 'op://VAULT_ID/ITEM_ID_A/credential' },
+          { id: 'slot-b', token: 'op://VAULT_ID/ITEM_ID_B/credential' },
+          { id: 'slot-c', token: 'op://VAULT_ID/ITEM_ID_C/credential' },
+          { id: 'slot-d', token: 'op://VAULT_ID/ITEM_ID_D/credential' },
         ],
       },
     ],
@@ -93,4 +92,17 @@ test('it rejects a check id that holds a colon', async () => {
   });
 
   expect(readWatchConfig(configPath)).rejects.toThrow('a check id holds only a-z, 0-9 and -');
+});
+
+test('it rejects a config with a top-level atc block and no notify block', async () => {
+  const ctx = await setupTest();
+
+  const configPath = join(ctx.folder, 'stu-watch.config.json');
+
+  await writeFile(
+    configPath,
+    JSON.stringify({ atc: { session: 's-stu' }, statePath: 'reported.json', checks: [] }),
+  );
+
+  expect(readWatchConfig(configPath)).rejects.toThrow('notify');
 });

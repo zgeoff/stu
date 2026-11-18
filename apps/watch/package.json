@@ -16,7 +16,9 @@
     "@stu/notifier-atc": "workspace:*",
     "@stu/probe-net": "workspace:*",
     "@stu/quota-anthropic": "workspace:*",
+    "@stu/secrets-op": "workspace:*",
     "@stu/sessions-atc": "workspace:*",
-    "@stu/state-file": "workspace:*"
+    "@stu/state-file": "workspace:*",
+    "ts-pattern": "catalog:"
   }
 }

@@ -2,8 +2,11 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { startStubGrafana } from '@stu/alerts-prometheus/test-utils/start-stub-grafana';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { startStubTCP } from '@stu/probe-net/test-utils/start-stub-tcp';
+import { writeStubOp } from '@stu/secrets-op/test-utils/write-stub-op';
+import { readReported } from '@stu/state-file';
 import { buildSeeder } from './test-utils/build-seeder.ts';
 
 async function setupTest() {
@@ -19,6 +22,7 @@ async function setupTest() {
   await mkdir(stateFolder, { recursive: true });
 
   return {
+    folder,
     runtimeFolder,
     stateFolder,
     startAtc: async (socketFolder: string) => {
@@ -41,7 +45,7 @@ async function setupTest() {
 
     // the environment a systemd user unit gets: the manager's, with no ATC_* variable and no
     // XDG_* variable beyond XDG_RUNTIME_DIR
-    runMain: async (args: readonly string[]) => {
+    runMain: async (args: readonly string[], extraEnv: Readonly<Record<string, string>> = {}) => {
       const watcher = Bun.spawn([process.execPath, join(import.meta.dir, 'main.ts'), ...args], {
         env: {
           HOME: home,
@@ -53,6 +57,7 @@ async function setupTest() {
           XDG_RUNTIME_DIR: runtimeFolder,
           INVOCATION_ID: '0123456789abcdef0123456789abcdef',
           JOURNAL_STREAM: '8:4242',
+          ...extraEnv,
         },
         stdout: 'pipe',
         stderr: 'pipe',
@@ -164,4 +169,61 @@ test('it exits 2 without a config path', async () => {
   const result = await ctx.runMain([]);
 
   expect(result.exitCode).toBe(2);
+});
+
+test('it reads each op:// reference with op, and no secret reaches a message, the reported file or the output', async () => {
+  const ctx = await setupTest();
+  const atc = await ctx.startAtc(ctx.runtimeFolder);
+
+  const binFolder = await writeStubOp(ctx.folder, {
+    serviceAccountToken: 'test-op-service-token',
+    values: { 'op://vault-test/item-grafana/credential': 'glsa_test_fake_secret' },
+  });
+
+  const grafana = await startStubGrafana({
+    token: 'glsa_test_fake_secret',
+    firing: [{ alertname: 'DiskFull', severity: 'critical' }],
+  });
+
+  onTestFinished(() => grafana.stop());
+
+  const configPath = await ctx.seed.watchConfig({
+    statePath: 'reported.json',
+    checks: [
+      {
+        id: 'prometheus',
+        kind: 'alerts-prometheus',
+        grafanaURL: grafana.url,
+        datasourceUID: 'prom-test',
+        token: 'op://vault-test/item-grafana/credential',
+      },
+      {
+        id: 'claude-quota',
+        kind: 'quota-anthropic',
+        sevenPct: 85,
+        slots: [{ id: 'slot-a', token: 'op://vault-test/item-missing/credential' }],
+      },
+    ],
+  });
+
+  const run = await ctx.runMain([configPath], {
+    PATH: `${binFolder}:/usr/bin:/bin`,
+    OP_SERVICE_ACCOUNT_TOKEN: 'test-op-service-token',
+  });
+
+  const reported = await readReported(join(ctx.folder, 'reported.json'));
+
+  const written = [JSON.stringify(atc.stored), JSON.stringify(reported), run.stdout, run.stderr];
+
+  expect(atc.stored.map((message) => message.text)).toIncludeSameMembers([
+    'FAULT prometheus:alertname="DiskFull",severity="critical": Prometheus alert DiskFull (critical) is firing',
+    'FAULT claude-quota: cannot run: the secret at slots.0.token: op read failed (exit 1)',
+  ]);
+
+  expect(written).toSatisfyAll(
+    (text: string) =>
+      !text.includes('glsa_test_fake_secret') &&
+      !text.includes('test-op-service-token') &&
+      !text.includes('op://'),
+  );
 });
