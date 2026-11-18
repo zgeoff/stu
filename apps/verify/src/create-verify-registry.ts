@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { checkDaemon } from './daemon/check-daemon.ts';
 import { featurePaths, ignoredPaths, sharedPaths } from './feature-paths.ts';
 import { INBOX_MESSAGE_SCHEMA, readInbox } from './inbox/read-inbox.ts';
-import { parseRunEndpoints } from './run/parse-run-endpoints.ts';
+import { RUN_ENDPOINTS_SCHEMA } from './run/run-endpoints-schema.ts';
 import { runWatch } from './watch/run-watch.ts';
 
 export function createVerifyRegistry(): Wringer {
@@ -33,7 +33,7 @@ export function createVerifyRegistry(): Wringer {
       effect: 'read',
       args: z.strictObject({}),
       data: z.strictObject({ messages: z.array(INBOX_MESSAGE_SCHEMA) }),
-      run: (_args, ctx) => readInbox(parseRunEndpoints(ctx.endpoints)),
+      run: (_args, ctx) => readInbox(RUN_ENDPOINTS_SCHEMA.parse(ctx.endpoints)),
     })
     .check({
       name: 'daemon',
@@ -41,7 +41,7 @@ export function createVerifyRegistry(): Wringer {
       input: z.strictObject({}),
       data: z.strictObject({ socket: z.string(), session: z.string() }),
       timeoutMs: 10_000,
-      run: (_input, ctx) => checkDaemon(parseRunEndpoints(ctx.endpoints)),
+      run: (_input, ctx) => checkDaemon(RUN_ENDPOINTS_SCHEMA.parse(ctx.endpoints)),
     })
     .feature({
       name: 'fault-messages',
@@ -57,6 +57,6 @@ export function createVerifyRegistry(): Wringer {
 function createLaunchPlan(): LaunchPlan {
   return {
     command: [process.execPath, join(import.meta.dir, 'daemon', 'run-local-daemon.ts')],
-    ready: (line) => (line['event'] === 'ready' ? parseRunEndpoints(line) : null),
+    ready: (line) => (line['event'] === 'ready' ? RUN_ENDPOINTS_SCHEMA.parse(line) : null),
   };
 }
