@@ -117,17 +117,19 @@ async function readAxiomAnswer<Answer>(
 ): Promise<Answer> {
   const requestEnd = new AbortController();
 
+  const signal = AbortSignal.any([
+    source.deadline,
+    createTimeoutSignal(source.sleepMs, REQUEST_LIMIT_MS, requestEnd.signal),
+  ]);
+
   try {
     const response = await source
       .fetch(request.url, {
         headers: { authorization: `Bearer ${source.token}`, accept: 'application/json' },
-        signal: AbortSignal.any([
-          source.deadline,
-          createTimeoutSignal(source.sleepMs, REQUEST_LIMIT_MS, requestEnd.signal),
-        ]),
+        signal,
       })
       .catch((error: unknown) => {
-        throw new Error(`axiom gave no answer for ${request.what} (${toErrorName(error)})`);
+        throw buildNoAnswerError(request.what, error);
       });
 
     if (!response.ok) {
@@ -136,7 +138,13 @@ async function readAxiomAnswer<Answer>(
       throw new Error(`axiom answered ${response.status} for ${request.what}`);
     }
 
-    const body: unknown = await response.json().catch(() => null);
+    const body: unknown = await response.json().catch((error: unknown) => {
+      if (signal.aborted) {
+        throw buildNoAnswerError(request.what, error);
+      }
+
+      return null;
+    });
 
     const answer = request.schema.safeParse(body);
 
@@ -148,6 +156,10 @@ async function readAxiomAnswer<Answer>(
   } finally {
     requestEnd.abort();
   }
+}
+
+function buildNoAnswerError(what: string, error: unknown): Error {
+  return new Error(`axiom gave no answer for ${what} (${toErrorName(error)})`);
 }
 
 function toErrorName(error: unknown): string {

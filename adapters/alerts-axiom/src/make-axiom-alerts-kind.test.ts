@@ -331,3 +331,34 @@ test('it starts no history read after one fails', async () => {
     '/v2/monitors/mon_04/history',
   ]);
 });
+
+test('it throws that Axiom gave no answer when the monitor list body stalls past the 10-second limit', async () => {
+  const ctx = setupTest();
+
+  const faults = ctx.readFaults(
+    (_url, init) => {
+      const body = new ReadableStream<Uint8Array>({
+        start: (controller) => {
+          controller.enqueue(new TextEncoder().encode('[{"id":'));
+
+          init.signal?.addEventListener('abort', () => {
+            controller.error(init.signal?.reason);
+          });
+        },
+      });
+
+      return Promise.resolve(new Response(body));
+    },
+    {
+      apiURL: 'https://api.example.invalid',
+      token: 'xaat-test-token',
+    },
+  );
+
+  await ctx.timers.passSleepsUntilSettled(faults);
+
+  expect(faults).rejects.toThrowWithMessage(
+    Error,
+    'axiom gave no answer for monitors (TimeoutError)',
+  );
+});
