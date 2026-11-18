@@ -68,9 +68,11 @@ async function waitForExit(pids: readonly number[], timeoutMs: number): Promise<
 }
 
 async function readLivePIDs(pids: readonly number[]): Promise<number[]> {
-  const live = await Promise.all(pids.map((pid) => probeProcess(pid)));
+  const probed = await Promise.all(
+    pids.map(async (pid) => ({ pid, live: await probeProcess(pid) })),
+  );
 
-  return pids.filter((_pid, index) => live[index]);
+  return probed.filter((process) => process.live).map((process) => process.pid);
 }
 
 async function probeProcess(pid: number): Promise<boolean> {
