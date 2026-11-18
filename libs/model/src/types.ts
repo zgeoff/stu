@@ -91,3 +91,21 @@ export interface SessionSnapshot {
 export interface SessionsPort {
   readonly listSessions: () => Promise<readonly SessionSnapshot[]>;
 }
+
+export interface ProgramRunOptions {
+  // the program's whole environment: it inherits nothing from the watcher's
+  readonly env: Readonly<Record<string, string>>;
+  readonly timeoutMs: number;
+}
+
+// A program's exit code and stdout. The result has no stderr, so no caller can quote what a program
+// echoes there, such as a secret it was given.
+export interface ProgramResult {
+  readonly code: number;
+  readonly stdout: string;
+}
+
+export type RunProgram = (
+  argv: readonly [string, ...string[]],
+  options: ProgramRunOptions,
+) => Promise<ProgramResult>;
