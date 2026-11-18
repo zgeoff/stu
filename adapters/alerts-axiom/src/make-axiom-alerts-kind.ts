@@ -166,8 +166,8 @@ function toErrorName(error: unknown): string {
   return error instanceof Error ? error.name : 'unknown error';
 }
 
-// Two rounds read the 7 monitors a live account had, and a run every 5 minutes stays far under any
-// per-minute limit of Axiom's API.
+// Axiom's API limits requests per minute, so the kind sends a small burst, not one request per
+// monitor at once.
 const HISTORY_READS_AT_ONCE = 4;
 
 async function readMonitorFaults(
