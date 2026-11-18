@@ -11,13 +11,21 @@ export interface SlotUsage {
   readonly sevenDay: WindowUsage;
 }
 
-// The account's unified rate-limit headers, or null when either window's use is missing. The use
-// headers are fractions of 1, and the reset headers are epoch seconds.
+// The account's unified rate-limit headers, or null when the 7-day use is missing or a use header
+// is malformed. The use headers are fractions of 1, and the reset headers are epoch seconds.
 export function parseUsageHeaders(headers: Headers): SlotUsage | null {
-  const fiveHour = parseWindow(headers, '5h');
   const sevenDay = parseWindow(headers, '7d');
 
-  return fiveHour === null || sevenDay === null ? null : { fiveHour, sevenDay };
+  if (sevenDay === null) {
+    return null;
+  }
+
+  // Anthropic leaves out the 5h headers while the account has no open 5-hour window
+  const fiveHour = headers.has('anthropic-ratelimit-unified-5h-utilization')
+    ? parseWindow(headers, '5h')
+    : { fraction: 0, resetsAt: null };
+
+  return fiveHour === null ? null : { fiveHour, sevenDay };
 }
 
 function parseWindow(headers: Headers, window: '5h' | '7d'): WindowUsage | null {

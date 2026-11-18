@@ -42,10 +42,39 @@ test.each(['', 'high', '-0.1'])('it gives null for a 7-day use of %p', (sevenDay
   expect(usage).toBeNull();
 });
 
-test('it gives null when the 5-hour use header is missing', () => {
+test('it reads a missing 5-hour use as no use when the 7-day use is there', () => {
   const usage = parseUsageHeaders(
-    new Headers({ 'anthropic-ratelimit-unified-7d-utilization': '0.2' }),
+    new Headers({
+      'anthropic-ratelimit-unified-7d-utilization': '0.2',
+      'anthropic-ratelimit-unified-7d-reset': '1795300000',
+    }),
+  );
+
+  expect(usage).toStrictEqual({
+    fiveHour: { fraction: 0, resetsAt: null },
+    sevenDay: { fraction: 0.2, resetsAt: '2026-11-21T22:26:40Z' },
+  });
+});
+
+test.each(['', 'high', '-0.1'])('it gives null for a 5-hour use of %p', (fiveHour) => {
+  const usage = parseUsageHeaders(
+    new Headers({
+      'anthropic-ratelimit-unified-5h-utilization': fiveHour,
+      'anthropic-ratelimit-unified-7d-utilization': '0.2',
+    }),
   );
 
   expect(usage).toBeNull();
+});
+
+test('it gives null when the 7-day use header is missing', () => {
+  const usage = parseUsageHeaders(
+    new Headers({ 'anthropic-ratelimit-unified-5h-utilization': '0.2' }),
+  );
+
+  expect(usage).toBeNull();
+});
+
+test('it gives null when neither use header is there', () => {
+  expect(parseUsageHeaders(new Headers())).toBeNull();
 });

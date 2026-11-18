@@ -94,7 +94,8 @@ async function readSlotUsage(
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-5-5',
+        // the subscription route answers claude-haiku-5-5 with a 429 that has no usage headers
+        model: 'claude-haiku-4-5',
         max_tokens: 1,
         messages: [{ role: 'user', content: 'hi' }],
       }),

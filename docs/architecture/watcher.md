@@ -68,9 +68,12 @@ window with no new notification reads as resolved.
 
 `quota-anthropic` reads each slot's token with `op read`, one slot after another. A slot is over its
 limit when its `5h` use is at or above `fivePct`, or its `7d` use is at or above `sevenPct`. A slot
-over either line gives one fault, which names each window over its line. A 429 answer counts as a
-reading when it carries both use headers. When any slot cannot be read, the whole check throws, so a
-1Password outage opens one fault.
+over either line gives one fault, which names each window over its line. The request asks for
+`claude-haiku-4-5`, because the subscription route answers `claude-haiku-5-5` with a 429 that has no
+use headers. An answer, a 429 included, counts as a reading when it carries the `7d` use header. An
+answer with no `5h` use header reads as no `5h` use, because Anthropic leaves that header out while
+the slot has no open `5h` window. An answer with no `7d` use header makes the check throw. When any
+slot cannot be read, the whole check throws, so a 1Password outage opens one fault.
 
 ## What a fault owes stu
 

@@ -65,7 +65,7 @@ test('it reads each slot token with op and posts a 1-token request with it', asy
           'anthropic-version': '2023-06-01',
           'anthropic-beta': 'oauth-2025-04-20',
         }),
-        body: '{"model":"claude-haiku-5-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}',
+        body: '{"model":"claude-haiku-4-5","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}',
       },
     ],
   ]);
@@ -98,6 +98,82 @@ test('it counts a 429 that carries both use headers as a reading', async () => {
   expect(faults).toStrictEqual([
     { key: 'slot-a', line: 'Claude slot slot-a is over its limit: 5-hour 100% (line 90%)' },
   ]);
+});
+
+test('it gives no fault for a slot whose answer has a 7-day use under the line and no 5-hour use', async () => {
+  const ctx = setupTest();
+
+  const anthropic = buildStubFetch({
+    '/v1/messages': [
+      new Response(null, { headers: { 'anthropic-ratelimit-unified-7d-utilization': '0.31' } }),
+    ],
+  });
+
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
+
+  const faults = await kind({
+    opServiceAccountToken: 'op-test-service-token',
+    fivePct: 90,
+    sevenPct: 85,
+    slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
+  });
+
+  expect(faults).toStrictEqual([]);
+});
+
+test('it gives one fault for the slot whose 429 has a full 7-day use and no 5-hour use', async () => {
+  const ctx = setupTest();
+
+  const anthropic = buildStubFetch({
+    '/v1/messages': [
+      new Response(null, { headers: { 'anthropic-ratelimit-unified-7d-utilization': '0.05' } }),
+      new Response('{"type":"error"}', {
+        status: 429,
+        headers: {
+          'anthropic-ratelimit-unified-7d-utilization': '1.0',
+          'anthropic-ratelimit-unified-7d-status': 'rejected',
+        },
+      }),
+    ],
+  });
+
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
+
+  const faults = await kind({
+    opServiceAccountToken: 'op-test-service-token',
+    fivePct: 90,
+    sevenPct: 85,
+    slots: [
+      { id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' },
+      { id: 'slot-b', tokenRef: 'op://vault-test/item-b/credential' },
+    ],
+  });
+
+  expect(faults).toStrictEqual([
+    { key: 'slot-b', line: 'Claude slot slot-b is over its limit: 7-day 100% (line 85%)' },
+  ]);
+});
+
+test('it throws naming the slot when a 429 has no use headers', () => {
+  const ctx = setupTest();
+
+  const anthropic = buildStubFetch({
+    '/v1/messages': [new Response('{"type":"error"}', { status: 429 })],
+  });
+
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
+
+  const faults = kind({
+    opServiceAccountToken: 'op-test-service-token',
+    fivePct: 90,
+    sevenPct: 85,
+    slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
+  });
+
+  expect(faults).rejects.toThrowWithMessage(
+    Error,
+    'slot slot-a: the messages API answered 429 with no usage headers',
+  );
 });
 
 test('it throws naming the slot and status when the answer has no use headers', () => {
