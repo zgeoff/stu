@@ -9,7 +9,7 @@ import type { Subprocess } from 'bun';
 import { openRunAtc } from '../run/open-run-atc.ts';
 import { parseAtcBody } from '../run/parse-atc-body.ts';
 import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
-import { readChildPIDs, removeRun } from './remove-run.ts';
+import { removeRun } from './remove-run.ts';
 
 const DAEMON_READY_TIMEOUT_MS = 30_000;
 const DAEMON_POLL_INTERVAL_MS = 100;
@@ -33,8 +33,15 @@ export async function runLocalDaemon(env: Readonly<Record<string, string | undef
     throw error;
   }
 
-  const sessionPIDs: number[] = [];
-  const stop = () => removeRun({ root, daemon, sessionPIDs });
+  // The group SIGTERM ends the daemon too, so the signal handler and the wait on the daemon's exit
+  // both stop the run; one removal serves both, since two at once race on the same files.
+  let removal: Promise<void> | null = null;
+
+  const stop = () => {
+    removal ??= removeRun({ root, home, daemon });
+
+    return removal;
+  };
 
   const stopAndExit = async () => {
     await stop();
@@ -53,8 +60,6 @@ export async function runLocalDaemon(env: Readonly<Record<string, string | undef
     await waitForDaemon(atc, daemon);
 
     const session = await createInboxSession(atc, root);
-
-    sessionPIDs.push(...(await readChildPIDs(daemon.pid)));
 
     run = { root, home, runtime, socket, session, probePort: String(readFreePort()) };
   } catch (error) {
