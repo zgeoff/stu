@@ -1,5 +1,5 @@
 import { closeSync, openSync } from 'node:fs';
-import { chmod, mkdir, mkdtemp } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { SPAWN_ANSWER_SCHEMA } from '@atcx/contract';
@@ -21,25 +21,17 @@ export async function runLocalDaemon(env: Readonly<Record<string, string | undef
 
   const home = join(root, 'home');
   const runtime = join(root, 'run');
-
-  await mkdir(home);
-  await mkdir(runtime);
-  await chmod(runtime, 0o700);
-
   const daemonEnv = { PATH: env['PATH'] ?? '', HOME: home, XDG_RUNTIME_DIR: runtime };
   const socket = resolveAtcPaths(daemonEnv).daemonSocketPath;
-  const log = openSync(join(root, 'daemon.log'), 'a');
+  let daemon: Subprocess;
 
-  // Only these three variables: the session's claude inherits the daemon's environment, and the
-  // caller's holds ATC_* variables and agent credentials.
-  const daemon = Bun.spawn(['atc', 'daemon'], {
-    env: daemonEnv,
-    stdin: 'ignore',
-    stdout: log,
-    stderr: log,
-  });
+  try {
+    daemon = await startDaemon(root, daemonEnv);
+  } catch (error) {
+    await rm(root, { recursive: true, force: true });
 
-  closeSync(log);
+    throw error;
+  }
 
   const sessionPIDs: number[] = [];
   const stop = () => removeRun({ root, daemon, sessionPIDs });
@@ -78,6 +70,33 @@ export async function runLocalDaemon(env: Readonly<Record<string, string | undef
   await stop();
 
   process.exitCode = exitCode;
+}
+
+interface DaemonEnv {
+  readonly PATH: string;
+  readonly HOME: string;
+  readonly XDG_RUNTIME_DIR: string;
+}
+
+async function startDaemon(root: string, daemonEnv: DaemonEnv): Promise<Subprocess> {
+  await mkdir(daemonEnv.HOME);
+  await mkdir(daemonEnv.XDG_RUNTIME_DIR);
+  await chmod(daemonEnv.XDG_RUNTIME_DIR, 0o700);
+
+  const log = openSync(join(root, 'daemon.log'), 'a');
+
+  // Only these three variables: the session's claude inherits the daemon's environment, and the
+  // caller's holds ATC_* variables and agent credentials.
+  try {
+    return Bun.spawn(['atc', 'daemon'], {
+      env: { ...daemonEnv },
+      stdin: 'ignore',
+      stdout: log,
+      stderr: log,
+    });
+  } finally {
+    closeSync(log);
+  }
 }
 
 async function waitForDaemon(atc: AtcSocketClient, daemon: Subprocess) {
