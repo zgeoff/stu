@@ -21,15 +21,19 @@ test('it loads the committed example config, which names only placeholder hosts 
 
   const config = await readWatchConfig(examplePath);
 
-  expect([
-    config.atc.session,
-    config.checks.flatMap((check) =>
-      [check['host'], check['url']].filter((value) => value !== undefined),
-    ),
-  ]).toStrictEqual([
-    's0-stu-session-id',
-    ['tunnel-a.example', 'tunnel-b.example', 'https://app.example/health'],
-  ]);
+  expect(config).toStrictEqual({
+    atc: { session: 's0-stu-session-id' },
+    statePath: join(import.meta.dir, '..', 'stu-watch.reported.json'),
+    checks: [
+      { id: 'memory', kind: 'memory', minAvailablePct: 10, maxFullAvg60: 20 },
+      { id: 'disk', kind: 'disk', everyMin: 15, paths: ['/'], maxUsedPct: 90 },
+      { id: 'tunnel-a', kind: 'tcp', host: 'tunnel-a.example', port: 2222 },
+      { id: 'tunnel-b', kind: 'tcp', host: 'tunnel-b.example', port: 2222 },
+      { id: 'public-route', kind: 'http', everyMin: 5, url: 'https://app.example/health' },
+      { id: 'sessions-dead', kind: 'session-dead' },
+      { id: 'sessions-stuck', kind: 'session-stuck', stuckMin: 30 },
+    ],
+  });
 });
 
 test('it reads a relative statePath from the config file folder', async () => {
