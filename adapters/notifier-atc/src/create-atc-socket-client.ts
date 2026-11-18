@@ -48,11 +48,15 @@ async function runAtcCall<Path extends AtcCallPath>(
     .with({ kind: 'connected' }, async (connection) => {
       const procedures = createAtcProcedures(connection.socket);
 
+      // A socket error, such as atc closing the connection before it reads the hello, rejects the
+      // timeout's wait, and it may come after the request reached atc, so it answers unreached.
       try {
         return await Promise.race([
           writeAtcCall(procedures, { client: options.client, protocol }, path, input),
           endCallOnTimeout(connection.socket, options.timeoutMs),
         ]);
+      } catch (error) {
+        return { kind: 'unreached' as const, reason: formatCause(error) };
       } finally {
         connection.socket.destroy();
       }
@@ -211,10 +215,14 @@ async function writeAtcCall<Path extends AtcCallPath>(
 
 const ERROR_DATA_SCHEMA = z.record(z.string(), z.unknown());
 
-function toRefusedAnswer(error: ORPCError<string, unknown>): AtcAnswer {
-  const data = ERROR_DATA_SCHEMA.safeParse(error.data);
+// An oRPC error carries the code atc refused with, and the data that code defines.
+const REFUSAL_SCHEMA = z.object({ code: z.string(), data: z.unknown() });
 
-  return { kind: 'refused', code: error.code, data: data.success ? data.data : {} };
+function toRefusedAnswer(error: unknown): AtcAnswer {
+  const refusal = REFUSAL_SCHEMA.parse(error);
+  const data = ERROR_DATA_SCHEMA.safeParse(refusal.data);
+
+  return { kind: 'refused', code: refusal.code, data: data.success ? data.data : {} };
 }
 
 function findDaemonProtocol(answer: AtcAnswer): number | null {

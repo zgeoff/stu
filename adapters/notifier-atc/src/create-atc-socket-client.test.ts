@@ -156,6 +156,24 @@ test('it answers unreached when atc writes a line that is not JSON', async () =>
   });
 });
 
+test('it answers unreached when atc closes the connection as soon as it accepts it', async () => {
+  const ctx = await setupTest();
+
+  const closing = createServer((socket) => {
+    socket.destroy();
+  });
+
+  const socketPath = join(ctx.folder, 'closing.sock');
+
+  closing.listen(socketPath);
+
+  onTestFinished(() => closing.close());
+
+  const answer = await ctx.createClient([socketPath]).read('/session/list', {});
+
+  expect(answer).toStrictEqual({ kind: 'unreached', reason: expect.any(String) });
+});
+
 test('it answers unreached with each path it tried when no daemon listens at any of them', async () => {
   const ctx = await setupTest();
 
