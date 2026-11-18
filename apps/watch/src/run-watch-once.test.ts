@@ -239,7 +239,6 @@ test('it names the slot whose op read hangs, inside the 30-second check timeout'
     ],
   });
 
-  // the op read and the check timeout each wait on a deadline; once both wait, the earlier one passes
   const deadlines: { atMs: number; pass: () => void }[] = [];
   const bothWaiting = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
 
