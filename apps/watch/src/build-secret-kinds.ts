@@ -31,7 +31,17 @@ function makeSecretKind(kind: Kind, readSecret: (ref: string) => Promise<SecretA
     // in the order of the params, so the first unread reference is the same on every run
     const values = new Map(answers.map((read) => [read.secret.ref, toSecretValue(read)]));
 
-    return kind(buildResolvedParams(params, values));
+    const secretValues = [...values.values()];
+
+    // A kind can quote any param, such as a slot id, so the value never reaches stu through it.
+    const faults = await kind(buildResolvedParams(params, values)).catch((error: unknown) => {
+      throw toMaskedError(error, secretValues);
+    });
+
+    return faults.map((fault) => ({
+      key: toMaskedText(fault.key, secretValues),
+      line: toMaskedText(fault.line, secretValues),
+    }));
   };
 }
 
@@ -92,4 +102,16 @@ function buildResolvedValue(value: unknown, values: ReadonlyMap<string, string>)
   }
 
   return buildResolvedParams(value, values);
+}
+
+function toMaskedError(error: unknown, secretValues: readonly string[]): unknown {
+  if (!(error instanceof Error) || !secretValues.some((value) => error.message.includes(value))) {
+    return error;
+  }
+
+  return new Error(toMaskedText(error.message, secretValues));
+}
+
+function toMaskedText(text: string, secretValues: readonly string[]): string {
+  return secretValues.reduce((masked, value) => masked.replaceAll(value, '[secret]'), text);
 }

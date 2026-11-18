@@ -103,3 +103,28 @@ test('it runs no kind whose params hold an unread reference', async () => {
 
   expect(quota.mock.calls).toStrictEqual([]);
 });
+
+test('it masks a read value that a kind puts in a fault key or line', async () => {
+  const stub = buildStubSecrets({ 'op://vault-test/item-a/id': 'test-secret-id' });
+
+  const quota = makeStubKind([
+    [{ key: 'test-secret-id', line: 'Claude slot test-secret-id is over its limit' }],
+  ]);
+
+  const kinds = buildSecretKinds({ 'quota-anthropic': quota }, stub.secrets);
+
+  const faults = await kinds['quota-anthropic']?.({ slots: [{ id: 'op://vault-test/item-a/id' }] });
+
+  expect(faults).toStrictEqual([
+    { key: '[secret]', line: 'Claude slot [secret] is over its limit' },
+  ]);
+});
+
+test('it masks a read value in the message a kind throws', () => {
+  const stub = buildStubSecrets({ 'op://vault-test/item-a/id': 'test-secret-id' });
+  const quota = makeStubKind([new Error('slot test-secret-id: the messages API answered 401')]);
+  const kinds = buildSecretKinds({ 'quota-anthropic': quota }, stub.secrets);
+  const run = kinds['quota-anthropic']?.({ slots: [{ id: 'op://vault-test/item-a/id' }] });
+
+  expect(run).rejects.toThrowWithMessage(Error, 'slot [secret]: the messages API answered 401');
+});

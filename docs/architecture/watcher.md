@@ -47,8 +47,9 @@ holds no raw token. The watcher reads only the references of the checks that are
   `the secret at slots.1.token: op read failed (exit 1)`, and never the reference or a value. The
   other checks run.
 - The check's timeout covers its reads, so a hung read opens the check's cannot-run fault too.
-- A kind never puts a value it was given into a fault or a thrown message, so no secret reaches stu,
-  the reported file or the program's output.
+- The watcher writes `[secret]` in place of each read value in the faults and the thrown message of
+  the check, so a kind that quotes a param, such as a slot id, sends no secret to stu, the reported
+  file or the program's output.
 
 The `@stu/secrets-op` adapter reads each reference with `op read`, and drops `op`'s stderr. `op`
 gets only `PATH`, `HOME` and the service account token. The watcher takes that token from its own
