@@ -13,9 +13,6 @@ import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
 const DAEMON_READY_TIMEOUT_MS = 30_000;
 const DAEMON_POLL_INTERVAL_MS = 100;
 
-// The `local` target's app. It starts `atc daemon` in a new /tmp/stu-verify-* root, spawns the inbox
-// session, picks a free probe port, and prints one ready line. On SIGTERM or SIGINT it stops the
-// daemon and removes the root.
 export async function runLocalDaemon(env: Readonly<Record<string, string | undefined>>) {
   // A Unix socket path holds at most 108 bytes, so the root goes under /tmp, never under the
   // caller's TMPDIR or the repo's .wringer folder, either of which can be long.
@@ -112,7 +109,6 @@ async function createInboxSession(atc: AtcSocketClient, root: string): Promise<s
   return parseAtcBody('/session/spawn', answer, SPAWN_ANSWER_SCHEMA).session.id;
 }
 
-// The port of a listener the kernel picked, read and then closed, so nothing listens on it.
 function readFreePort(): number {
   const listener = Bun.listen({
     hostname: '127.0.0.1',

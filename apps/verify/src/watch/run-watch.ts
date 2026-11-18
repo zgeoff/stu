@@ -15,8 +15,6 @@ export interface WatchPass {
   readonly path: string;
 }
 
-// Runs the watcher program once against the run's daemon. With the port open, a listener holds the
-// probe port while the program runs, so its tcp check passes.
 export async function runWatch(ctx: DriveContext, pass: WatchPass): Promise<{ stdout: string }> {
   const run = RUN_ENDPOINTS_SCHEMA.parse(ctx.endpoints);
   const probePort = Number(run.probePort);

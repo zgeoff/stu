@@ -12,9 +12,8 @@ export const INBOX_MESSAGE_SCHEMA = z.strictObject({
 
 export type InboxMessage = z.output<typeof INBOX_MESSAGE_SCHEMA>;
 
-// Reads the inbox session's events and each message they name. It reads through events.read and
-// message.get, because `atc tap` acks each message, and session.read holds a message only once the
-// session's claude takes it, which a claude with no login never does.
+// Reads each message from the session's events, so nothing is acked. A session's transcript holds a
+// message only once its claude takes it, and a claude with no login never does.
 export async function readInbox(
   atc: AtcReader,
   session: string,

@@ -11,8 +11,8 @@ export type GateInput =
   | { readonly kind: 'gate'; readonly baseRef: string; readonly body: string }
   | { readonly kind: 'refused'; readonly message: string };
 
-// What the `verify / gate` step gates for one pull_request event: the base branch, and the body as
-// GitHub held it when the run started, so an `edited` run reads the report `bun verify publish` wrote.
+// The body comes from the event, as GitHub held it when the run started, so an `edited` run reads
+// the report `bun verify publish` just wrote.
 export function readGateInput(event: unknown): GateInput {
   const parsed = PULL_REQUEST_EVENT_SCHEMA.safeParse(event);
 

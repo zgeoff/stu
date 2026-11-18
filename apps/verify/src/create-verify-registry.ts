@@ -62,7 +62,6 @@ export function createVerifyRegistry(): Wringer {
     .build();
 }
 
-// The launcher prints the ready line once the daemon answers and the inbox session runs.
 function createLaunchPlan(): LaunchPlan {
   return {
     command: [process.execPath, join(import.meta.dir, 'daemon', 'run-local-daemon.ts')],
