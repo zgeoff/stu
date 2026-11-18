@@ -20,7 +20,7 @@ test('it leaves stderr out of the result', async () => {
 });
 
 test('it kills a program that runs past the timeout and gives a non-zero code', async () => {
-  const result = await runProgram(['/bin/sh', '-c', 'sleep 5'], { env: {}, timeoutMs: 50 });
+  const result = await runProgram(['/bin/sh', '-c', 'exec sleep 5'], { env: {}, timeoutMs: 50 });
 
   expect(result.code).not.toBe(0);
 });
