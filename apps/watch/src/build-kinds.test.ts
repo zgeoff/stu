@@ -2,8 +2,9 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { startStubAPI } from '@stu/alerts-prometheus/test-utils/start-stub-api';
 import { createHostLinux } from '@stu/host-linux';
+import type { FetchHTTP } from '@stu/model';
+import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
 import { createAtcSocketClient } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import type { StubAtcSession } from '@stu/notifier-atc/test-utils/start-stub-atc';
@@ -29,8 +30,8 @@ async function setupTest() {
     createKinds: async (
       sessions: readonly StubAtcSession[],
 
-      // where the quota kind posts its messages request
-      messagesURL: string,
+      // what the alert and quota kinds call in place of the network
+      fetch: FetchHTTP,
     ) => {
       const atc = await startStubAtc(folder, {
         protocol: 14,
@@ -57,15 +58,16 @@ async function setupTest() {
         sessions: createSessionsAtc(client),
         readNowMs: () => 1_794_900_000_000,
         run: () => Promise.resolve({ code: 0, stdout: 'test-slot-token\n' }),
-        messagesURL,
+        fetch,
         opEnv: { PATH: '/usr/bin', HOME: '/tmp/stu-test' },
       });
     },
   };
 }
 
-// The example's hosts and secrets are placeholders, so the net, alert and quota checks go to local
-// servers instead, which keeps the test off the network; every other param is the example's.
+// The example's hosts and secrets are placeholders, so the net checks go to local servers and the
+// alert and quota kinds to a stub fetch, which keeps the test off the network; every other param is
+// the example's.
 test('it runs every check of the example config without a throw', async () => {
   const ctx = await setupTest();
 
@@ -96,15 +98,13 @@ test('it runs every check of the example config without a throw', async () => {
     'anthropic-ratelimit-unified-7d-utilization': '0.2',
   };
 
-  const api = startStubAPI({
+  const api = buildStubFetch({
     '/api/datasources/proxy/uid/PROMETHEUS_UID/api/v1/query': [
       Response.json({ status: 'success', data: { resultType: 'vector', result: [] } }),
     ],
     '/v2/monitors': [Response.json([])],
     '/v1/messages': Array.from({ length: 4 }, () => new Response(null, { headers: usageHeaders })),
   });
-
-  onTestFinished(() => api.stop());
 
   const kinds = await ctx.createKinds(
     [
@@ -113,14 +113,12 @@ test('it runs every check of the example config without a throw', async () => {
         lastActivityAt: 1_794_900_000_000,
       },
     ],
-    `${api.url}/v1/messages`,
+    api.fetch,
   );
 
   const localTargets: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
     tcp: { host: '127.0.0.1', port: tcp.port },
     http: { url: `http://127.0.0.1:${http.port}/health` },
-    'alerts-prometheus': { grafanaURL: api.url },
-    'alerts-axiom': { apiURL: api.url },
   };
 
   const runs = Promise.all(
@@ -151,7 +149,7 @@ test('it gives the dead session kind the sessions atc lists', async () => {
         lastActivityAt: 1_794_900_000_000,
       },
     ],
-    'http://127.0.0.1:9/v1/messages',
+    buildStubFetch({}).fetch,
   );
 
   const faults = await kinds['session-dead']?.({});
@@ -174,7 +172,7 @@ test('it gives the stuck session kind the last activity atc reads for each sessi
         lastActivityAt: 1_794_900_000_000 - 45 * 60_000,
       },
     ],
-    'http://127.0.0.1:9/v1/messages',
+    buildStubFetch({}).fetch,
   );
 
   const faults = await kinds['session-stuck']?.({ stuckMin: 30 });
@@ -194,7 +192,7 @@ test('it gives the stuck session kind no fault for a session active within stuck
         lastActivityAt: 1_794_900_000_000 - 10 * 60_000,
       },
     ],
-    'http://127.0.0.1:9/v1/messages',
+    buildStubFetch({}).fetch,
   );
 
   const faults = await kinds['session-stuck']?.({ stuckMin: 30 });

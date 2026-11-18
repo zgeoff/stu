@@ -1,11 +1,10 @@
 {
   "name": "@stu/quota-anthropic",
   "private": true,
-  "description": "The quota-anthropic kind, which reads the newest notification of each Axiom monitor",
+  "description": "The quota-anthropic kind, which reads each Claude slot's 5-hour and 7-day use",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./test-utils/*": "./src/test-utils/*.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsrs --noEmit"
@@ -15,7 +14,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@stu/faults": "workspace:*",
-    "@zgeoff/testing": "catalog:"
+    "@stu/faults": "workspace:*"
   }
 }

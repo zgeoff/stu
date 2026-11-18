@@ -1,9 +1,10 @@
-import type { Fault, Kind } from '@stu/model';
+import type { Fault, FetchHTTP, Kind } from '@stu/model';
 import { z } from 'zod';
 import { canMonitorResolve } from './can-monitor-resolve.ts';
 import { findFiringSince } from './find-firing-since.ts';
 
 export interface AxiomAlertsPorts {
+  readonly fetch: FetchHTTP;
   readonly readNowMs: () => number;
 }
 
@@ -26,14 +27,27 @@ const MONITOR = z.looseObject({
 
 const MONITORS_ANSWER = z.array(MONITOR);
 
+interface AxiomSource {
+  readonly fetch: FetchHTTP;
+
+  // the API's URL without a trailing slash
+  readonly base: string;
+  readonly token: string;
+}
+
 export function makeAxiomAlertsKind(ports: AxiomAlertsPorts): Kind {
   return async (params) => {
     const axiom = AXIOM_PARAMS.parse(params);
     const now = Temporal.Instant.fromEpochMilliseconds(ports.readNowMs());
-    const base = axiom.apiURL.replace(/\/$/u, '');
 
-    const monitors = await readAxiomAnswer(axiom, {
-      url: new URL(`${base}/v2/monitors`),
+    const source: AxiomSource = {
+      fetch: ports.fetch,
+      base: axiom.apiURL.replace(/\/$/u, ''),
+      token: axiom.token,
+    };
+
+    const monitors = await readAxiomAnswer(source, {
+      url: new URL(`${source.base}/v2/monitors`),
       what: 'monitors',
       schema: MONITORS_ANSWER,
     });
@@ -42,7 +56,7 @@ export function makeAxiomAlertsKind(ports: AxiomAlertsPorts): Kind {
 
     // one after another, so a run sends Axiom one request at a time
     for (const monitor of monitors.filter((candidate) => canMonitorResolve(candidate))) {
-      const fault = await readMonitorFault(axiom, base, monitor, now);
+      const fault = await readMonitorFault(source, monitor, now);
 
       if (fault !== null) {
         faults.push(fault);
@@ -52,8 +66,6 @@ export function makeAxiomAlertsKind(ports: AxiomAlertsPorts): Kind {
     return faults;
   };
 }
-
-type AxiomTarget = z.output<typeof AXIOM_PARAMS>;
 
 interface AxiomRequest<Answer> {
   readonly url: URL;
@@ -65,15 +77,17 @@ interface AxiomRequest<Answer> {
 
 // No thrown message quotes the URL, the token or the body: the engine sends it to stu.
 async function readAxiomAnswer<Answer>(
-  axiom: AxiomTarget,
+  source: AxiomSource,
   request: AxiomRequest<Answer>,
 ): Promise<Answer> {
-  const response = await fetch(request.url, {
-    headers: { authorization: `Bearer ${axiom.token}`, accept: 'application/json' },
-    signal: AbortSignal.timeout(15_000),
-  }).catch((error: unknown) => {
-    throw new Error(`axiom gave no answer for ${request.what} (${toErrorName(error)})`);
-  });
+  const response = await source
+    .fetch(request.url, {
+      headers: { authorization: `Bearer ${source.token}`, accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    .catch((error: unknown) => {
+      throw new Error(`axiom gave no answer for ${request.what} (${toErrorName(error)})`);
+    });
 
   if (!response.ok) {
     await response.body?.cancel();
@@ -107,17 +121,16 @@ const HISTORY_ANSWER = z.array(NOTIFICATION);
 const HISTORY_WINDOW = Temporal.Duration.from({ hours: 30 * 24 });
 
 async function readMonitorFault(
-  axiom: AxiomTarget,
-  base: string,
+  source: AxiomSource,
   monitor: z.output<typeof MONITOR>,
   now: Temporal.Instant,
 ): Promise<Fault | null> {
-  const url = new URL(`${base}/v2/monitors/${encodeURIComponent(monitor.id)}/history`);
+  const url = new URL(`${source.base}/v2/monitors/${encodeURIComponent(monitor.id)}/history`);
 
   url.searchParams.set('startTime', now.subtract(HISTORY_WINDOW).toString());
   url.searchParams.set('endTime', now.toString());
 
-  const history = await readAxiomAnswer(axiom, {
+  const history = await readAxiomAnswer(source, {
     url,
     what: `history of ${monitor.id}`,
     schema: HISTORY_ANSWER,

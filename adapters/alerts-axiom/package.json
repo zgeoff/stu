@@ -4,8 +4,7 @@
   "description": "The alerts-axiom kind, which reads the newest notification of each Axiom monitor",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./test-utils/*": "./src/test-utils/*.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsrs --noEmit"
@@ -15,7 +14,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@stu/faults": "workspace:*",
-    "@zgeoff/testing": "catalog:"
+    "@stu/faults": "workspace:*"
   }
 }

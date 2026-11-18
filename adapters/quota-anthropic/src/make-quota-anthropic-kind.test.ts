@@ -1,19 +1,19 @@
-import { expect, mock, onTestFinished, test } from 'bun:test';
+import { expect, mock, test } from 'bun:test';
 import { runWatch } from '@stu/faults';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
-import type { Reported, RunProgram } from '@stu/model';
+import type { FetchHTTP, Reported, RunProgram } from '@stu/model';
+import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
 import { makeQuotaAnthropicKind } from './make-quota-anthropic-kind.ts';
-import { startStubAPI } from './test-utils/start-stub-api.ts';
 
 function setupTest() {
   const run = mock<RunProgram>(() => Promise.resolve({ code: 0, stdout: 'test-slot-token\n' }));
 
   return {
     run,
-    makeKind: (messagesURL: string, kindRun: RunProgram) =>
+    makeKind: (fetch: FetchHTTP, kindRun: RunProgram) =>
       makeQuotaAnthropicKind({
         run: kindRun,
-        messagesURL,
+        fetch,
         opEnv: { PATH: '/usr/bin', HOME: '/tmp/stu-test' },
       }),
   };
@@ -22,7 +22,7 @@ function setupTest() {
 test('it reads each slot token with op and posts a 1-token request with it', async () => {
   const ctx = setupTest();
 
-  const anthropic = startStubAPI({
+  const anthropic = buildStubFetch({
     '/v1/messages': [
       new Response(null, {
         headers: {
@@ -33,9 +33,7 @@ test('it reads each slot token with op and posts a 1-token request with it', asy
     ],
   });
 
-  onTestFinished(() => anthropic.stop());
-
-  const kind = ctx.makeKind(`${anthropic.url}/v1/messages`, ctx.run);
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
 
   await kind({
     opServiceAccountToken: 'op-test-service-token',
@@ -76,7 +74,7 @@ test('it reads each slot token with op and posts a 1-token request with it', asy
 test('it counts a 429 that carries both use headers as a reading', async () => {
   const ctx = setupTest();
 
-  const anthropic = startStubAPI({
+  const anthropic = buildStubFetch({
     '/v1/messages': [
       new Response('{"type":"error"}', {
         status: 429,
@@ -88,9 +86,7 @@ test('it counts a 429 that carries both use headers as a reading', async () => {
     ],
   });
 
-  onTestFinished(() => anthropic.stop());
-
-  const kind = ctx.makeKind(`${anthropic.url}/v1/messages`, ctx.run);
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
 
   const faults = await kind({
     opServiceAccountToken: 'op-test-service-token',
@@ -107,13 +103,11 @@ test('it counts a 429 that carries both use headers as a reading', async () => {
 test('it throws naming the slot and status when the answer has no use headers', () => {
   const ctx = setupTest();
 
-  const anthropic = startStubAPI({
+  const anthropic = buildStubFetch({
     '/v1/messages': [new Response('{"type":"error"}', { status: 401 })],
   });
 
-  onTestFinished(() => anthropic.stop());
-
-  const kind = ctx.makeKind(`${anthropic.url}/v1/messages`, ctx.run);
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
 
   const faults = kind({
     opServiceAccountToken: 'op-test-service-token',
@@ -135,7 +129,7 @@ test('it throws without the reference or any token when op read exits 1', () => 
     Promise.resolve({ code: 1, stdout: 'op-test-service-token op://vault-test/item-a' }),
   );
 
-  const kind = ctx.makeKind('http://127.0.0.1:9/v1/messages', failingRun);
+  const kind = ctx.makeKind(buildStubFetch({}).fetch, failingRun);
 
   const faults = kind({
     opServiceAccountToken: 'op-test-service-token',
@@ -150,7 +144,7 @@ test('it throws without the reference or any token when op read exits 1', () => 
 test('it reads each slot once over 30 one-minute runs of a check at everyMin 30', async () => {
   const ctx = setupTest();
 
-  const anthropic = startStubAPI({
+  const anthropic = buildStubFetch({
     '/v1/messages': [
       new Response(null, {
         headers: {
@@ -167,9 +161,7 @@ test('it reads each slot once over 30 one-minute runs of a check at everyMin 30'
     ],
   });
 
-  onTestFinished(() => anthropic.stop());
-
-  const kind = ctx.makeKind(`${anthropic.url}/v1/messages`, ctx.run);
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
 
   const checks = [
     {

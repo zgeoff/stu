@@ -1,28 +1,35 @@
-import { expect, onTestFinished, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { runWatch } from '@stu/faults';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
-import type { Reported } from '@stu/model';
+import type { FetchHTTP, Reported } from '@stu/model';
+import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
 import { makeAxiomAlertsKind } from './make-axiom-alerts-kind.ts';
-import { startStubAPI } from './test-utils/start-stub-api.ts';
 
 function setupTest() {
   const file: { state: Reported } = { state: { faults: {}, lastRun: {} } };
   const clock = { nowMs: 0 };
   const notifier = buildStubNotifier([{ kind: 'sent' }]);
-  const kind = makeAxiomAlertsKind({ readNowMs: () => clock.nowMs });
+  const readNowMs = () => clock.nowMs;
 
   return {
     clock,
-    kind,
     notifier,
-    runAt: async (at: string, apiURL: string) => {
+    readFaults: (fetch: FetchHTTP, params: Readonly<Record<string, unknown>>) =>
+      makeAxiomAlertsKind({ fetch, readNowMs })(params),
+    runAt: async (at: string, fetch: FetchHTTP) => {
       clock.nowMs = Temporal.Instant.from(at).epochMilliseconds;
 
       const result = await runWatch({
         checks: [
-          { id: 'axiom', kind: 'alerts-axiom', everyMin: 5, apiURL, token: 'xaat-test-token' },
+          {
+            id: 'axiom',
+            kind: 'alerts-axiom',
+            everyMin: 5,
+            apiURL: 'https://api.example.invalid',
+            token: 'xaat-test-token',
+          },
         ],
-        kinds: { 'alerts-axiom': kind },
+        kinds: { 'alerts-axiom': makeAxiomAlertsKind({ fetch, readNowMs }) },
         state: file.state,
         at: Temporal.Instant.from(at),
         notifier,
@@ -37,7 +44,7 @@ function setupTest() {
 test('it sends stu one open while a monitor triggers and one recovery once it resolves', async () => {
   const ctx = setupTest();
 
-  const axiom = startStubAPI({
+  const axiom = buildStubFetch({
     '/v2/monitors': [
       Response.json([{ id: 'mon_a1', name: 'API errors', type: 'Threshold', labelIds: [] }]),
       Response.json([{ id: 'mon_a1', name: 'API errors', type: 'Threshold', labelIds: [] }]),
@@ -74,10 +81,8 @@ test('it sends stu one open while a monitor triggers and one recovery once it re
     ],
   });
 
-  onTestFinished(() => axiom.stop());
-
-  await ctx.runAt('2026-11-17T08:00:00Z', axiom.url);
-  await ctx.runAt('2026-11-17T08:05:00Z', axiom.url);
+  await ctx.runAt('2026-11-17T08:00:00Z', axiom.fetch);
+  await ctx.runAt('2026-11-17T08:05:00Z', axiom.fetch);
 
   expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
     'FAULT axiom:mon_a1: Axiom monitor "API errors" triggered at 2026-11-17T07:58:00Z',
@@ -88,16 +93,17 @@ test('it sends stu one open while a monitor triggers and one recovery once it re
 test('it asks for the last 30 days of history with the token', async () => {
   const ctx = setupTest();
 
-  const axiom = startStubAPI({
+  const axiom = buildStubFetch({
     '/v2/monitors': [Response.json([{ id: 'mon_a1', name: 'API errors', type: 'Threshold' }])],
     '/v2/monitors/mon_a1/history': [Response.json([])],
   });
 
-  onTestFinished(() => axiom.stop());
-
   ctx.clock.nowMs = Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds;
 
-  await ctx.kind({ apiURL: axiom.url, token: 'xaat-test-token' });
+  await ctx.readFaults(axiom.fetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
 
   expect(
     axiom.requests.map((request) => [request.target, request.headers['authorization']]),
@@ -113,7 +119,7 @@ test('it asks for the last 30 days of history with the token', async () => {
 test('it asks for no history of a disabled, a skip-resolved or a MatchEvent monitor, and gives no fault for them', async () => {
   const ctx = setupTest();
 
-  const axiom = startStubAPI({
+  const axiom = buildStubFetch({
     '/v2/monitors': [
       Response.json([
         { id: 'mon_off', name: 'Off', type: 'Threshold', disabled: true },
@@ -123,9 +129,10 @@ test('it asks for no history of a disabled, a skip-resolved or a MatchEvent moni
     ],
   });
 
-  onTestFinished(() => axiom.stop());
-
-  const faults = await ctx.kind({ apiURL: axiom.url, token: 'xaat-test-token' });
+  const faults = await ctx.readFaults(axiom.fetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
 
   expect([faults, axiom.requests.map((request) => request.target)]).toStrictEqual([
     [],
@@ -136,13 +143,14 @@ test('it asks for no history of a disabled, a skip-resolved or a MatchEvent moni
 test('it throws for a monitor type it does not know', () => {
   const ctx = setupTest();
 
-  const axiom = startStubAPI({
+  const axiom = buildStubFetch({
     '/v2/monitors': [Response.json([{ id: 'mon_w', name: 'Hook', type: 'Webhook' }])],
   });
 
-  onTestFinished(() => axiom.stop());
-
-  const faults = ctx.kind({ apiURL: axiom.url, token: 'xaat-test-token' });
+  const faults = ctx.readFaults(axiom.fetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
 
   expect(faults).rejects.toThrowWithMessage(
     Error,
@@ -153,7 +161,7 @@ test('it throws for a monitor type it does not know', () => {
 test('it sends no recovery and names only the status and monitor when one history call answers 502', async () => {
   const ctx = setupTest();
 
-  const axiom = startStubAPI({
+  const axiom = buildStubFetch({
     '/v2/monitors': [
       Response.json([{ id: 'mon_a1', name: 'API errors', type: 'Threshold' }]),
       Response.json([{ id: 'mon_a1', name: 'API errors', type: 'Threshold' }]),
@@ -164,10 +172,8 @@ test('it sends no recovery and names only the status and monitor when one histor
     ],
   });
 
-  onTestFinished(() => axiom.stop());
-
-  await ctx.runAt('2026-11-17T08:00:00Z', axiom.url);
-  await ctx.runAt('2026-11-17T08:05:00Z', axiom.url);
+  await ctx.runAt('2026-11-17T08:00:00Z', axiom.fetch);
+  await ctx.runAt('2026-11-17T08:05:00Z', axiom.fetch);
 
   expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
     'FAULT axiom:mon_a1: Axiom monitor "API errors" triggered at 2026-11-17T07:58:00Z',
@@ -175,13 +181,14 @@ test('it sends no recovery and names only the status and monitor when one histor
   ]);
 });
 
-test('it throws without the url when Axiom gives no answer', async () => {
+test('it throws without the url when Axiom gives no answer', () => {
   const ctx = setupTest();
-  const axiom = startStubAPI({});
+  const axiom = buildStubFetch({ '/v2/monitors': [new TypeError('fetch failed')] });
 
-  await axiom.stop();
-
-  const faults = ctx.kind({ apiURL: axiom.url, token: 'xaat-test-token' });
+  const faults = ctx.readFaults(axiom.fetch, {
+    apiURL: 'https://api.example.invalid',
+    token: 'xaat-test-token',
+  });
 
   expect(faults).rejects.toThrowWithMessage(Error, /^axiom gave no answer for monitors \(\w+\)$/u);
 });

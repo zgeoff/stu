@@ -34,7 +34,7 @@ const result = await runWatchOnce({
     sessions: createSessionsAtc(atc),
     readNowMs: () => Date.now(),
     run: runProgram,
-    messagesURL: 'https://api.anthropic.com/v1/messages',
+    fetch,
     opEnv: { PATH: process.env['PATH'] ?? '', HOME: process.env['HOME'] ?? '' },
   }),
   createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),

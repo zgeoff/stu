@@ -109,3 +109,6 @@ export type RunProgram = (
   argv: readonly [string, ...string[]],
   options: ProgramRunOptions,
 ) => Promise<ProgramResult>;
+
+// The global fetch, narrowed to the one form the alert and quota kinds call.
+export type FetchHTTP = (url: URL, init: RequestInit) => Promise<Response>;

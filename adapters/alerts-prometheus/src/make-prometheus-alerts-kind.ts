@@ -1,4 +1,4 @@
-import type { Kind } from '@stu/model';
+import type { FetchHTTP, Kind } from '@stu/model';
 import { z } from 'zod';
 import { buildAlertFault } from './build-alert-fault.ts';
 import { pickSentAlerts } from './pick-sent-alerts.ts';
@@ -14,11 +14,15 @@ const PROMETHEUS_PARAMS = z.strictObject({
   token: z.string().min(1),
 });
 
-export function makePrometheusAlertsKind(): Kind {
+export interface PrometheusAlertsPorts {
+  readonly fetch: FetchHTTP;
+}
+
+export function makePrometheusAlertsKind(ports: PrometheusAlertsPorts): Kind {
   return async (params) => {
     const grafana = PROMETHEUS_PARAMS.parse(params);
 
-    const firing = await readFiringAlerts(grafana);
+    const firing = await readFiringAlerts(ports, grafana);
 
     return pickSentAlerts(firing).map((labels) => buildAlertFault(labels));
   };
@@ -35,7 +39,10 @@ const VECTOR_ANSWER = z.object({
 type GrafanaTarget = z.output<typeof PROMETHEUS_PARAMS>;
 
 // No thrown message quotes the URL, the token or the body: the engine sends it to stu.
-async function readFiringAlerts(grafana: GrafanaTarget): Promise<AlertLabels[]> {
+async function readFiringAlerts(
+  ports: PrometheusAlertsPorts,
+  grafana: GrafanaTarget,
+): Promise<AlertLabels[]> {
   const base = grafana.grafanaURL.replace(/\/$/u, '');
   const datasource = encodeURIComponent(grafana.datasourceUID);
 
@@ -43,12 +50,14 @@ async function readFiringAlerts(grafana: GrafanaTarget): Promise<AlertLabels[]> 
 
   url.searchParams.set('query', FIRING_QUERY);
 
-  const response = await fetch(url, {
-    headers: { authorization: `Bearer ${grafana.token}`, accept: 'application/json' },
-    signal: AbortSignal.timeout(15_000),
-  }).catch((error: unknown) => {
-    throw new Error(`grafana gave no answer (${toErrorName(error)})`);
-  });
+  const response = await ports
+    .fetch(url, {
+      headers: { authorization: `Bearer ${grafana.token}`, accept: 'application/json' },
+      signal: AbortSignal.timeout(15_000),
+    })
+    .catch((error: unknown) => {
+      throw new Error(`grafana gave no answer (${toErrorName(error)})`);
+    });
 
   if (!response.ok) {
     await response.body?.cancel();

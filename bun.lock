@@ -35,7 +35,6 @@
       },
       "devDependencies": {
         "@stu/faults": "workspace:*",
-        "@zgeoff/testing": "catalog:",
       },
     },
     "adapters/alerts-prometheus": {
@@ -46,7 +45,6 @@
       },
       "devDependencies": {
         "@stu/faults": "workspace:*",
-        "@zgeoff/testing": "catalog:",
       },
     },
     "adapters/host-linux": {
@@ -89,7 +87,6 @@
       },
       "devDependencies": {
         "@stu/faults": "workspace:*",
-        "@zgeoff/testing": "catalog:",
       },
     },
     "adapters/sessions-atc": {
@@ -132,6 +129,9 @@
         "@atcx/contract": "catalog:",
         "@orpc/contract": "catalog:",
         "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@zgeoff/testing": "catalog:",
       },
     },
     "modules/faults": {

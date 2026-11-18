@@ -1,4 +1,4 @@
-import type { Fault, Kind, RunProgram } from '@stu/model';
+import type { Fault, FetchHTTP, Kind, RunProgram } from '@stu/model';
 import { z } from 'zod';
 import { buildSlotFault } from './build-slot-fault.ts';
 import { parseUsageHeaders } from './parse-usage-headers.ts';
@@ -6,9 +6,7 @@ import type { SlotUsage } from './parse-usage-headers.ts';
 
 export interface QuotaAnthropicPorts {
   readonly run: RunProgram;
-
-  // Anthropic's messages endpoint
-  readonly messagesURL: string;
+  readonly fetch: FetchHTTP;
 
   // what op needs of the watcher's environment, such as PATH and HOME
   readonly opEnv: Readonly<Record<string, string>>;
@@ -77,6 +75,8 @@ async function readSlotToken(
   return token;
 }
 
+const MESSAGES_URL = new URL('https://api.anthropic.com/v1/messages');
+
 // One 1-token request: the messages API answers with the account's rate-limit headers, a 429 at
 // the limit included.
 async function readSlotUsage(
@@ -84,25 +84,27 @@ async function readSlotUsage(
   slot: Slot,
   token: string,
 ): Promise<SlotUsage> {
-  const response = await fetch(ports.messagesURL, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${token}`,
-      'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'oauth-2025-04-20',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-5-5',
-      max_tokens: 1,
-      messages: [{ role: 'user', content: 'hi' }],
-    }),
-    signal: AbortSignal.timeout(15_000),
-  }).catch((error: unknown) => {
-    throw new Error(
-      `slot ${slot.id}: the messages API gave no answer (${error instanceof Error ? error.name : 'unknown error'})`,
-    );
-  });
+  const response = await ports
+    .fetch(MESSAGES_URL, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'oauth-2025-04-20',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-5-5',
+        max_tokens: 1,
+        messages: [{ role: 'user', content: 'hi' }],
+      }),
+      signal: AbortSignal.timeout(15_000),
+    })
+    .catch((error: unknown) => {
+      throw new Error(
+        `slot ${slot.id}: the messages API gave no answer (${error instanceof Error ? error.name : 'unknown error'})`,
+      );
+    });
 
   await response.body?.cancel();
 
