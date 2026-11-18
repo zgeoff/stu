@@ -67,12 +67,16 @@ monitor type the kind doesn't know makes it throw. A monitor open for longer tha
 window with no new notification reads as resolved.
 
 `quota-anthropic` reads every slot at once, each slot's token with `op read` and then its use,
-because one `op read` can take several seconds and the check has a time limit. A slot is over its
-limit when its `7d` use is at or above `sevenPct`, and each slot over its line gives one fault. The
-kind reads no `5h` use, because the subscription has no `5h` window. The request asks for
-`claude-haiku-4-5`, because the subscription route answers `claude-haiku-5-5` with a 429 that has no
-use headers. An answer, a 429 included, counts as a reading when it carries the `7d` use header.
-When any slot cannot be read, the whole check throws, so a 1Password outage opens one fault.
+because one `op read` can take several seconds and the watcher stops any check at its timeout. Each
+slot's `op read` and request have their own time limits, which add up to less than the check
+timeout, so a slot that hangs fails with a message that names it. When any slot cannot be read, the
+whole check throws, so a 1Password outage opens one fault.
+
+A slot is over its limit when its `7d` use is at or above `sevenPct`, and each slot over its line
+gives one fault. The kind reads no `5h` use, because the subscription has no `5h` window. The
+request asks for `claude-haiku-4-5`, because the subscription route answers `claude-haiku-5-5` with
+a 429 that has no use headers. An answer, a 429 included, counts as a reading when it carries the
+`7d` use header.
 
 ## What a fault owes stu
 
