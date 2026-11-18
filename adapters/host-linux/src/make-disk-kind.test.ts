@@ -3,7 +3,7 @@ import { makeDiskKind } from './make-disk-kind.ts';
 
 function setupTest() {
   return {
-    createKind: (df: string) =>
+    makeKind: (df: string) =>
       makeDiskKind({
         readMeminfo: mock(() => Promise.reject(new Error('the disk kind reads no memory'))),
         readMemoryPressure: mock(() => Promise.reject(new Error('the disk kind reads no memory'))),
@@ -15,7 +15,7 @@ function setupTest() {
 test('it sees one fault keyed by the path for each filesystem over the limit', async () => {
   const ctx = setupTest();
 
-  const kind = ctx.createKind(
+  const kind = ctx.makeKind(
     [
       'Filesystem     1024-blocks      Used Available Capacity Mounted on',
       '/dev/sda1        100000000  95000000   5242880      95% /',
@@ -30,10 +30,7 @@ test('it sees one fault keyed by the path for each filesystem over the limit', a
 
 test('it throws when df gives fewer lines than the paths asked for', () => {
   const ctx = setupTest();
-
-  const kind = ctx.createKind(
-    'Filesystem     1024-blocks      Used Available Capacity Mounted on\n',
-  );
+  const kind = ctx.makeKind('Filesystem     1024-blocks      Used Available Capacity Mounted on\n');
 
   expect(kind({ paths: ['/'], maxUsedPct: 90 })).rejects.toThrow('no line for /');
 });

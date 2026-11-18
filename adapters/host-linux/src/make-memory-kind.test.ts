@@ -3,7 +3,7 @@ import { makeMemoryKind } from './make-memory-kind.ts';
 
 function setupTest() {
   return {
-    createKind: (meminfo: string, pressure: string) =>
+    makeKind: (meminfo: string, pressure: string) =>
       makeMemoryKind({
         readMeminfo: mock(() => Promise.resolve(meminfo)),
         readMemoryPressure: mock(() => Promise.resolve(pressure)),
@@ -14,7 +14,7 @@ function setupTest() {
 
 test('it sees a fault keyed available when memory available is under the limit', async () => {
   const ctx = setupTest();
-  const kind = ctx.createKind('MemTotal:       16777216 kB\nMemAvailable:     838861 kB\n', '');
+  const kind = ctx.makeKind('MemTotal:       16777216 kB\nMemAvailable:     838861 kB\n', '');
 
   const faults = await kind({ minAvailablePct: 10 });
 
@@ -26,7 +26,7 @@ test('it sees a fault keyed available when memory available is under the limit',
 test('it sees a fault keyed pressure when full avg60 is over the limit', async () => {
   const ctx = setupTest();
 
-  const kind = ctx.createKind(
+  const kind = ctx.makeKind(
     'MemTotal:       16777216 kB\nMemAvailable:    8388608 kB\n',
     'some avg10=0.00 avg60=30.00 avg300=0.00 total=1\nfull avg10=0.00 avg60=25.00 avg300=0.00 total=1\n',
   );
@@ -41,7 +41,7 @@ test('it sees a fault keyed pressure when full avg60 is over the limit', async (
 test('it sees no fault when memory is within both limits', async () => {
   const ctx = setupTest();
 
-  const kind = ctx.createKind(
+  const kind = ctx.makeKind(
     'MemTotal:       16777216 kB\nMemAvailable:    8388608 kB\n',
     'some avg10=0.00 avg60=0.00 avg300=0.00 total=1\nfull avg10=0.00 avg60=1.00 avg300=0.00 total=1\n',
   );

@@ -4,7 +4,7 @@ import { makeHTTPKind } from './make-http-kind.ts';
 
 function setupTest() {
   return {
-    createKind: (answer: HTTPAnswer) =>
+    makeKind: (answer: HTTPAnswer) =>
       makeHTTPKind({
         probeTCP: mock(() => Promise.reject(new Error('the http kind opens no tcp'))),
         readHTTP: mock(() => Promise.resolve(answer)),
@@ -15,7 +15,7 @@ function setupTest() {
 test.each([200, 302])('it sees no fault for a %d answer', async (status) => {
   const ctx = setupTest();
 
-  const faults = await ctx.createKind({ kind: 'answered', status })({
+  const faults = await ctx.makeKind({ kind: 'answered', status })({
     url: 'https://app.example/health',
   });
 
@@ -25,7 +25,7 @@ test.each([200, 302])('it sees no fault for a %d answer', async (status) => {
 test('it sees one fault keyed by the url for a 503 answer', async () => {
   const ctx = setupTest();
 
-  const faults = await ctx.createKind({ kind: 'answered', status: 503 })({
+  const faults = await ctx.makeKind({ kind: 'answered', status: 503 })({
     url: 'https://app.example/health',
   });
 
@@ -37,7 +37,7 @@ test('it sees one fault keyed by the url for a 503 answer', async () => {
 test('it sees a fault for any status but the one the params name', async () => {
   const ctx = setupTest();
 
-  const faults = await ctx.createKind({ kind: 'answered', status: 200 })({
+  const faults = await ctx.makeKind({ kind: 'answered', status: 200 })({
     url: 'https://app.example/health',
     status: 204,
   });
@@ -50,7 +50,7 @@ test('it sees a fault for any status but the one the params name', async () => {
 test('it sees one fault with the reason when the url gives no answer', async () => {
   const ctx = setupTest();
 
-  const faults = await ctx.createKind({ kind: 'unreached', reason: 'connection refused' })({
+  const faults = await ctx.makeKind({ kind: 'unreached', reason: 'connection refused' })({
     url: 'https://app.example/health',
   });
 
