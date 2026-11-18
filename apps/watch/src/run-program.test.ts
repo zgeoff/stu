@@ -108,3 +108,12 @@ test('it rejects with ENOENT when the program does not exist', () => {
     runProgram(['/tmp/stu-test/no-such-program'], { env: {}, timeoutMs: 1000 }),
   ).rejects.toMatchObject({ code: 'ENOENT' });
 });
+
+test('it gives 128 plus the signal number for a program a signal kills before the timeout', async () => {
+  const result = await runProgram(['/bin/sh', '-c', 'kill -TERM $$'], {
+    env: {},
+    timeoutMs: 5000,
+  });
+
+  expect(result).toStrictEqual({ code: 143, stdout: '' });
+});
