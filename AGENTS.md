@@ -37,6 +37,7 @@ These mistakes cost the most here:
   | `testing` and `project-testing` | writing or reviewing a test             |
   | `ci-design`                     | changing a workflow, a job or a trigger |
   | `skill-writing` and `deslop`    | creating or changing a skill            |
+  | `verify`                        | running a feature's journey, and handing back a pull request that changes a feature's files |
 
 - The repo-sync workflow copies the shared skills from
   [zgeoff/skills](https://github.com/zgeoff/skills), and the shared workflows, hooks and scripts
@@ -101,6 +102,9 @@ exception to a rule.
   the `pr / checks` job runs the package scripts that the `BUN_CHECK_SCRIPTS` repo variable lists.
   When the variable is unset, the job runs `audit`, `deadcode`, `format:check`, `lint`, `typecheck`
   and `test`.
+- `bun verify` runs the watcher against a throwaway atc daemon, as the `verify` skill says. CI's
+  `verify / gate` check fails a pull request that changes a feature's files with no fresh verdict
+  for that feature in its description.
 
 ## Commits and pull requests
 
