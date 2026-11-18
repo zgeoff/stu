@@ -370,3 +370,28 @@ test('it reads no reference of a check that is not due', async () => {
 
   expect(stub.reads).toStrictEqual(['op://vault-test/item-a/credential']);
 });
+
+test('it opens a cannot-run fault for a check whose secret read runs past 30 seconds', async () => {
+  const ctx = await setupTest();
+
+  const prometheus = makeStubKind([[]]);
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      { id: 'prometheus', kind: 'alerts-prometheus', token: 'op://vault-test/item-a/credential' },
+    ],
+  });
+
+  await ctx.run({
+    configPath,
+    kinds: { 'alerts-prometheus': prometheus },
+    secrets: { readSecret: () => new Promise(() => {}) },
+    at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
+    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
+    sleepMs: (durationMs) => (durationMs === 30_000 ? Promise.resolve() : new Promise(() => {})),
+  });
+
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
+    'FAULT prometheus: cannot run: timed out after 30000 ms',
+  ]);
+});
