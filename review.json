@@ -7,6 +7,7 @@
     ".lefthook/pre-push-baseline.yml",
     "socket.yml",
     ".claude/skill-gate.json",
+    ".claude/hooks/start.ts",
     "scripts/collect-command-names.ts",
     "scripts/collect-concurrency-findings.ts",
     "scripts/collect-expression-references.ts",

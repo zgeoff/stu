@@ -4,7 +4,9 @@
   "ignoreDependencies": ["@stylistic/eslint-plugin"],
   // the test script names its roots, so knip reads no package's tests from it
   "workspaces": {
-    ".": { "entry": ["rig.config.ts"] },
+    // the agent hooks run start.ts from .claude/settings.json and .codex/hooks.json, which knip
+    // never reads
+    ".": { "entry": ["rig.config.ts", ".claude/hooks/start.ts"] },
     "{apps,modules,adapters,libs}/*": {
       "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts", "bench/*.bench.ts"]
     }
