@@ -42,7 +42,7 @@ test('it records the hello that comes before each call', async () => {
     sendAnswer: null,
   });
 
-  await stub.client.read('/message/get', { message: 'm-1' });
+  await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
 
   expect(stub.atc.hellos).toStrictEqual([{ client: 'stu-watch/0.1.0', protocol: 14 }]);
 });
@@ -60,7 +60,7 @@ test('it refuses a hello on another protocol with the daemon version, which the 
     sendAnswer: null,
   });
 
-  await stub.client.read('/message/get', { message: 'm-1' });
+  await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
 
   expect(stub.atc.hellos).toStrictEqual([
     { client: 'stu-watch/0.1.0', protocol: 14 },
@@ -81,19 +81,23 @@ test('it answers a resend of a key it holds with the first send message', async 
     sendAnswer: null,
   });
 
-  await stub.client.write('/session/message', {
-    session: 's1',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's1',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
-  const replay = await stub.client.write('/session/message', {
-    session: 's1',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  const replay = await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's1',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
   expect(replay).toStrictEqual({ kind: 'answered', body: { message: 'm-1', status: 'queued' } });
 });
@@ -111,19 +115,23 @@ test('it stores a message once when its key is sent twice', async () => {
     sendAnswer: null,
   });
 
-  await stub.client.write('/session/message', {
-    session: 's1',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's1',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
-  await stub.client.write('/session/message', {
-    session: 's1',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's1',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
   expect(stub.atc.stored).toStrictEqual([
     { id: 'm-1', session: 's1', text: 'hi', from: 'stu-watch', idempotencyKey: 'k1' },
@@ -143,19 +151,23 @@ test('it answers idempotency_conflict for a held key sent to another session', a
     sendAnswer: null,
   });
 
-  await stub.client.write('/session/message', {
-    session: 's1',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's1',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
-  const conflict = await stub.client.write('/session/message', {
-    session: 's2',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  const conflict = await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's2',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
   expect(conflict).toStrictEqual({ kind: 'refused', code: 'idempotency_conflict', data: {} });
 });
@@ -173,7 +185,7 @@ test('it answers bad_args for a message it does not hold', async () => {
     sendAnswer: null,
   });
 
-  const miss = await stub.client.read('/message/get', { message: 'm-9' });
+  const miss = await stub.client.read((procedures) => procedures.message.get({ message: 'm-9' }));
 
   expect(miss).toStrictEqual({ kind: 'refused', code: 'bad_args', data: {} });
 });
@@ -191,12 +203,14 @@ test('it closes the connection without an answer to a send whose reply it drops'
     sendAnswer: null,
   });
 
-  const answer = await stub.client.write('/session/message', {
-    session: 's1',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  const answer = await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's1',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
   expect(answer).toStrictEqual({
     kind: 'unreached',
@@ -217,12 +231,14 @@ test('it stores a message whose reply it drops', async () => {
     sendAnswer: null,
   });
 
-  await stub.client.write('/session/message', {
-    session: 's1',
-    text: 'hi',
-    from: 'stu-watch',
-    idempotencyKey: 'k1',
-  });
+  await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's1',
+      text: 'hi',
+      from: 'stu-watch',
+      idempotencyKey: 'k1',
+    }),
+  );
 
   expect(stub.atc.stored).toStrictEqual([
     { id: 'm-1', session: 's1', text: 'hi', from: 'stu-watch', idempotencyKey: 'k1' },
@@ -242,12 +258,14 @@ test('it refuses a key with the code its rules give', async () => {
     sendAnswer: null,
   });
 
-  const refusal = await stub.client.write('/session/message', {
-    session: 's-stu',
-    text: 'FAULT a',
-    from: 'stu-watch',
-    idempotencyKey: 'k-1',
-  });
+  const refusal = await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's-stu',
+      text: 'FAULT a',
+      from: 'stu-watch',
+      idempotencyKey: 'k-1',
+    }),
+  );
 
   expect(refusal).toStrictEqual({ kind: 'refused', code: 'unknown_session', data: {} });
 });
@@ -265,12 +283,14 @@ test('it stores nothing for a key it refuses', async () => {
     sendAnswer: null,
   });
 
-  await stub.client.write('/session/message', {
-    session: 's-stu',
-    text: 'FAULT a',
-    from: 'stu-watch',
-    idempotencyKey: 'k-1',
-  });
+  await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's-stu',
+      text: 'FAULT a',
+      from: 'stu-watch',
+      idempotencyKey: 'k-1',
+    }),
+  );
 
   expect(stub.atc.stored).toStrictEqual([]);
 });
@@ -288,7 +308,9 @@ test('it answers every message read with the refusal its rules give', async () =
     sendAnswer: null,
   });
 
-  const refusal = await stub.client.read('/message/get', { message: 'm-1' });
+  const refusal = await stub.client.read((procedures) =>
+    procedures.message.get({ message: 'm-1' }),
+  );
 
   expect(refusal).toStrictEqual({ kind: 'refused', code: 'internal_error', data: {} });
 });
@@ -306,12 +328,14 @@ test('it answers each send it takes with the body its rules give', async () => {
     sendAnswer: { accepted: true },
   });
 
-  const answer = await stub.client.write('/session/message', {
-    session: 's-stu',
-    text: 'FAULT a',
-    from: 'stu-watch',
-    idempotencyKey: 'k-1',
-  });
+  const answer = await stub.client.write((procedures) =>
+    procedures.session.message({
+      session: 's-stu',
+      text: 'FAULT a',
+      from: 'stu-watch',
+      idempotencyKey: 'k-1',
+    }),
+  );
 
   expect(answer).toStrictEqual({ kind: 'answered', body: { accepted: true } });
 });

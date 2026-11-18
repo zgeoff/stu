@@ -55,16 +55,11 @@ export interface HostPort {
 // The procedures of atc's published contract, as a client calls them.
 export type AtcProcedures = ContractRouterClient<typeof DAEMON_CONTRACT>;
 
-// The input of each atc procedure the watcher calls, as atc's contract types it.
-export interface AtcInputs {
-  readonly '/session/list': Parameters<AtcProcedures['session']['list']>[0];
-  readonly '/session/get': Parameters<AtcProcedures['session']['get']>[0];
-  readonly '/message/get': Parameters<AtcProcedures['message']['get']>[0];
-  readonly '/session/message': Parameters<AtcProcedures['session']['message']>[0];
-}
-
 // The atc procedures that read and change nothing.
-export type AtcReadPath = '/session/list' | '/session/get' | '/message/get';
+export interface AtcReadProcedures {
+  readonly session: Pick<AtcProcedures['session'], 'list' | 'get'>;
+  readonly message: Pick<AtcProcedures['message'], 'get'>;
+}
 
 // unreached: no daemon answered, so the call may not have reached atc at all
 export type AtcAnswer =
@@ -76,12 +71,10 @@ export type AtcAnswer =
     }
   | { readonly kind: 'unreached'; readonly reason: string };
 
-// Read-only access to atc: a package that holds only this port cannot send a message.
+// Read-only access to atc: a package that holds only this port cannot send a message. The call
+// gets atc's read procedures, and its answer comes back as the body of an answered call.
 export interface AtcReader {
-  readonly read: <Path extends AtcReadPath>(
-    path: Path,
-    input: AtcInputs[Path],
-  ) => Promise<AtcAnswer>;
+  readonly read: (call: (procedures: AtcReadProcedures) => Promise<unknown>) => Promise<AtcAnswer>;
 }
 
 export interface SessionSnapshot {

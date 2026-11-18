@@ -14,5 +14,8 @@
     "@stu/model": "workspace:*",
     "ts-pattern": "catalog:",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@orpc/client": "catalog:"
   }
 }

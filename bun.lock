@@ -67,6 +67,9 @@
         "ts-pattern": "catalog:",
         "zod": "catalog:",
       },
+      "devDependencies": {
+        "@orpc/client": "catalog:",
+      },
     },
     "adapters/state-file": {
       "name": "@stu/state-file",

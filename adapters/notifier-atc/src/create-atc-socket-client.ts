@@ -5,21 +5,23 @@ import { createInterface } from 'node:readline';
 import { ORPCError, createORPCClient } from '@orpc/client';
 import { StandardRPCLink } from '@orpc/client/standard';
 import { ClientPeer } from '@orpc/standard-server-peer';
-import type { AtcAnswer, AtcInputs, AtcProcedures } from '@stu/model';
+import type { AtcAnswer, AtcProcedures } from '@stu/model';
 import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
-import type { AtcCallPath, AtcSocketClient, AtcSocketOptions } from './types.ts';
+import type { AtcSocketClient, AtcSocketOptions } from './types.ts';
 
 // atc's protocol version, which its published contract does not export. A daemon on another
 // version refuses the hello with its own version, and the client retries once with that.
 const ATC_PROTOCOL = 14;
 
+type AtcCall = (procedures: AtcProcedures) => Promise<unknown>;
+
 export function createAtcSocketClient(options: AtcSocketOptions): AtcSocketClient {
   let protocol = ATC_PROTOCOL;
 
-  const call = async <Path extends AtcCallPath>(path: Path, input: AtcInputs[Path]) => {
-    const answer = await runAtcCall(options, protocol, path, input);
+  const run = async (call: AtcCall) => {
+    const answer = await runAtcCall(options, protocol, call);
 
     const daemonProtocol = findDaemonProtocol(answer);
 
@@ -29,17 +31,16 @@ export function createAtcSocketClient(options: AtcSocketOptions): AtcSocketClien
 
     protocol = daemonProtocol;
 
-    return runAtcCall(options, protocol, path, input);
+    return runAtcCall(options, protocol, call);
   };
 
-  return { read: call, write: call };
+  return { read: run, write: run };
 }
 
-async function runAtcCall<Path extends AtcCallPath>(
+async function runAtcCall(
   options: AtcSocketOptions,
   protocol: number,
-  path: Path,
-  input: AtcInputs[Path],
+  call: AtcCall,
 ): Promise<AtcAnswer> {
   const connected = await createAtcConnection(options);
 
@@ -52,7 +53,7 @@ async function runAtcCall<Path extends AtcCallPath>(
       // timeout's wait, and it may come after the request reached atc, so it answers unreached.
       try {
         return await Promise.race([
-          writeAtcCall(procedures, { client: options.client, protocol }, path, input),
+          writeAtcCall(procedures, { client: options.client, protocol }, call),
           endCallOnTimeout(connection.socket, options.timeoutMs),
         ]);
       } catch (error) {
@@ -178,32 +179,17 @@ interface AtcHello {
   readonly protocol: number;
 }
 
-type AtcCalls = {
-  readonly [Path in AtcCallPath]: (
-    procedures: AtcProcedures,
-    input: AtcInputs[Path],
-  ) => Promise<unknown>;
-};
-
-const ATC_CALLS: AtcCalls = {
-  '/session/list': (procedures, input) => procedures.session.list(input),
-  '/session/get': (procedures, input) => procedures.session.get(input),
-  '/message/get': (procedures, input) => procedures.message.get(input),
-  '/session/message': (procedures, input) => procedures.session.message(input),
-};
-
 // A reset socket or a line the peer cannot read may come after the request reached atc, so it
 // answers unreached, and the caller resends under the same key.
-async function writeAtcCall<Path extends AtcCallPath>(
+async function writeAtcCall(
   procedures: AtcProcedures,
   hello: AtcHello,
-  path: Path,
-  input: AtcInputs[Path],
+  call: AtcCall,
 ): Promise<AtcAnswer> {
   try {
     await procedures.daemon.hello(hello);
 
-    const body = await ATC_CALLS[path](procedures, input);
+    const body = await call(procedures);
 
     return { kind: 'answered', body };
   } catch (error) {

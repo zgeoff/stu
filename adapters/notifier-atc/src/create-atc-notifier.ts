@@ -17,12 +17,14 @@ export interface AtcNotifierOptions {
 export function createAtcNotifier(options: AtcNotifierOptions): Notifier {
   return {
     send: async (message) => {
-      const answer = await options.client.write('/session/message', {
-        session: options.session,
-        text: message.text,
-        from: options.from,
-        idempotencyKey: message.idempotencyKey,
-      });
+      const answer = await options.client.write((procedures) =>
+        procedures.session.message({
+          session: options.session,
+          text: message.text,
+          from: options.from,
+          idempotencyKey: message.idempotencyKey,
+        }),
+      );
 
       return match(answer)
         .returnType<Promise<SendOutcome> | SendOutcome>()
@@ -57,7 +59,9 @@ async function readUnknownOutcome(
     return { kind: 'rekey', reason: 'outcome_unknown without an effectRef' };
   }
 
-  const read = await options.client.read('/message/get', { message: effectRef });
+  const read = await options.client.read((procedures) =>
+    procedures.message.get({ message: effectRef }),
+  );
 
   return match(read)
     .returnType<SendOutcome>()

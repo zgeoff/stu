@@ -17,7 +17,7 @@ const SESSION_GET_SCHEMA = z.object({ lastActivityAt: z.number() });
 export function createSessionsAtc(atc: AtcReader): SessionsPort {
   return {
     listSessions: async () => {
-      const listAnswer = await atc.read('/session/list', {});
+      const listAnswer = await atc.read((procedures) => procedures.session.list({}));
 
       const listed = SESSION_LIST_SCHEMA.parse(
         parseAnswerBody('/session/list', listAnswer),
@@ -25,7 +25,9 @@ export function createSessionsAtc(atc: AtcReader): SessionsPort {
 
       return Promise.all(
         listed.map(async (session): Promise<SessionSnapshot> => {
-          const getAnswer = await atc.read('/session/get', { session: session.id });
+          const getAnswer = await atc.read((procedures) =>
+            procedures.session.get({ session: session.id }),
+          );
 
           return {
             id: session.id,
