@@ -8,12 +8,16 @@ import { buildWatchConfig } from './build-watch-config.ts';
 
 const WATCH_MAIN = join(import.meta.dir, '..', '..', '..', 'watch', 'src', 'main.ts');
 
+export interface WatchPass {
+  readonly port: 'closed' | 'open';
+
+  // the PATH the watcher runs with, which finds `bun`
+  readonly path: string;
+}
+
 // Runs the watcher program once against the run's daemon. With the port open, a listener holds the
 // probe port while the program runs, so its tcp check passes.
-export async function runWatch(
-  ctx: DriveContext,
-  port: 'closed' | 'open',
-): Promise<{ stdout: string }> {
+export async function runWatch(ctx: DriveContext, pass: WatchPass): Promise<{ stdout: string }> {
   const run = RUN_ENDPOINTS_SCHEMA.parse(ctx.endpoints);
   const probePort = Number(run.probePort);
   const configPath = join(run.root, 'stu-watch.config.json');
@@ -21,13 +25,13 @@ export async function runWatch(
   await writeFile(configPath, JSON.stringify(buildWatchConfig(run.session, probePort)));
 
   const command = buildWatchCommand(run, {
-    path: process.env['PATH'] ?? '',
+    path: pass.path,
     main: WATCH_MAIN,
     configPath,
   });
 
   const listener =
-    port === 'open'
+    pass.port === 'open'
       ? Bun.listen({
           hostname: '127.0.0.1',
           port: probePort,
