@@ -1,4 +1,4 @@
-import type { Fault, FetchHTTP, Kind, RunProgram } from '@stu/model';
+import type { FetchHTTP, Kind, RunProgram } from '@stu/model';
 import { z } from 'zod';
 import { buildSlotFault } from './build-slot-fault.ts';
 import { parseUsageHeaders } from './parse-usage-headers.ts';
@@ -23,8 +23,7 @@ const QUOTA_PARAMS = z.strictObject({
   // the 1Password service account token that op reads the slot tokens with
   opServiceAccountToken: z.string().min(1),
 
-  // a slot at or over this percent of a window's limit is a fault
-  fivePct: z.number().gt(0).lte(100),
+  // a slot at or over this percent of its 7-day limit is a fault
   sevenPct: z.number().gt(0).lte(100),
   slots: z.array(SLOT).min(1),
 });
@@ -34,20 +33,18 @@ const QUOTA_PARAMS = z.strictObject({
 export function makeQuotaAnthropicKind(ports: QuotaAnthropicPorts): Kind {
   return async (params) => {
     const quota = QUOTA_PARAMS.parse(params);
-    const faults: Fault[] = [];
 
-    for (const slot of quota.slots) {
-      const token = await readSlotToken(ports, quota, slot);
-      const usage = await readSlotUsage(ports, slot, token);
+    // Each op read took 6 to 7 s when measured, so four in turn ran past the check's timeout
+    const faults = await Promise.all(
+      quota.slots.map(async (slot) => {
+        const token = await readSlotToken(ports, quota, slot);
+        const usage = await readSlotUsage(ports, slot, token);
 
-      const fault = buildSlotFault(slot.id, usage, quota);
+        return buildSlotFault(slot.id, usage, quota.sevenPct);
+      }),
+    );
 
-      if (fault !== null) {
-        faults.push(fault);
-      }
-    }
-
-    return faults;
+    return faults.filter((fault) => fault !== null);
   };
 }
 

@@ -1,7 +1,7 @@
 {
   "name": "@stu/quota-anthropic",
   "private": true,
-  "description": "The quota-anthropic kind, which reads each Claude slot's 5-hour and 7-day use",
+  "description": "The quota-anthropic kind, which reads each Claude slot's 7-day use",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

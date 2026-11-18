@@ -1,4 +1,4 @@
-export interface WindowUsage {
+export interface SlotUsage {
   // a fraction of 1, such as 0.92
   readonly fraction: number;
 
@@ -6,38 +6,16 @@ export interface WindowUsage {
   readonly resetsAt: string | null;
 }
 
-export interface SlotUsage {
-  readonly fiveHour: WindowUsage;
-  readonly sevenDay: WindowUsage;
-}
-
-// The account's unified rate-limit headers, or null when the 7-day use is missing or a use header
-// is malformed. The use headers are fractions of 1, and the reset headers are epoch seconds.
+// The account's unified 7-day rate-limit headers, or null when the use header is missing or
+// malformed. The use header is a fraction of 1, and the reset header is epoch seconds.
 export function parseUsageHeaders(headers: Headers): SlotUsage | null {
-  const sevenDay = parseWindow(headers, '7d');
-
-  if (sevenDay === null) {
-    return null;
-  }
-
-  // Anthropic leaves out the 5h headers while the account has no open 5-hour window
-  const fiveHour = headers.has('anthropic-ratelimit-unified-5h-utilization')
-    ? parseWindow(headers, '5h')
-    : { fraction: 0, resetsAt: null };
-
-  return fiveHour === null ? null : { fiveHour, sevenDay };
-}
-
-function parseWindow(headers: Headers, window: '5h' | '7d'): WindowUsage | null {
-  const fraction = parseNonNegative(
-    headers.get(`anthropic-ratelimit-unified-${window}-utilization`),
-  );
+  const fraction = parseNonNegative(headers.get('anthropic-ratelimit-unified-7d-utilization'));
 
   if (fraction === null) {
     return null;
   }
 
-  const resetS = parseNonNegative(headers.get(`anthropic-ratelimit-unified-${window}-reset`));
+  const resetS = parseNonNegative(headers.get('anthropic-ratelimit-unified-7d-reset'));
 
   return {
     fraction,

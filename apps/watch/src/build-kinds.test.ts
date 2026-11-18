@@ -94,7 +94,6 @@ test('it runs every check of the example config without a throw', async () => {
   onTestFinished(() => http.stop());
 
   const usageHeaders = {
-    'anthropic-ratelimit-unified-5h-utilization': '0.1',
     'anthropic-ratelimit-unified-7d-utilization': '0.2',
   };
 

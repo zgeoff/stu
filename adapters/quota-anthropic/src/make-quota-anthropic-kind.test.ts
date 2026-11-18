@@ -26,7 +26,6 @@ test('it reads each slot token with op and posts a 1-token request with it', asy
     '/v1/messages': [
       new Response(null, {
         headers: {
-          'anthropic-ratelimit-unified-5h-utilization': '0.1',
           'anthropic-ratelimit-unified-7d-utilization': '0.2',
         },
       }),
@@ -37,7 +36,6 @@ test('it reads each slot token with op and posts a 1-token request with it', asy
 
   await kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
   });
@@ -71,36 +69,7 @@ test('it reads each slot token with op and posts a 1-token request with it', asy
   ]);
 });
 
-test('it counts a 429 that carries both use headers as a reading', async () => {
-  const ctx = setupTest();
-
-  const anthropic = buildStubFetch({
-    '/v1/messages': [
-      new Response('{"type":"error"}', {
-        status: 429,
-        headers: {
-          'anthropic-ratelimit-unified-5h-utilization': '1.0',
-          'anthropic-ratelimit-unified-7d-utilization': '0.6',
-        },
-      }),
-    ],
-  });
-
-  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
-
-  const faults = await kind({
-    opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
-    sevenPct: 85,
-    slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
-  });
-
-  expect(faults).toStrictEqual([
-    { key: 'slot-a', line: 'Claude slot slot-a is over its limit: 5-hour 100% (line 90%)' },
-  ]);
-});
-
-test('it gives no fault for a slot whose answer has a 7-day use under the line and no 5-hour use', async () => {
+test('it gives no fault for a slot whose 7-day use is under the line', async () => {
   const ctx = setupTest();
 
   const anthropic = buildStubFetch({
@@ -113,7 +82,6 @@ test('it gives no fault for a slot whose answer has a 7-day use under the line a
 
   const faults = await kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
   });
@@ -121,7 +89,7 @@ test('it gives no fault for a slot whose answer has a 7-day use under the line a
   expect(faults).toStrictEqual([]);
 });
 
-test('it gives one fault for the slot whose 429 has a full 7-day use and no 5-hour use', async () => {
+test('it gives one fault for the slot whose 429 carries a full 7-day use', async () => {
   const ctx = setupTest();
 
   const anthropic = buildStubFetch({
@@ -141,7 +109,6 @@ test('it gives one fault for the slot whose 429 has a full 7-day use and no 5-ho
 
   const faults = await kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [
       { id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' },
@@ -151,6 +118,27 @@ test('it gives one fault for the slot whose 429 has a full 7-day use and no 5-ho
 
   expect(faults).toStrictEqual([
     { key: 'slot-b', line: 'Claude slot slot-b is over its limit: 7-day 100% (line 85%)' },
+  ]);
+});
+
+test('it starts the op read of every slot before any of them finishes', () => {
+  const ctx = setupTest();
+  const pending = Promise.withResolvers<{ code: number; stdout: string }>();
+  const slowRun = mock<RunProgram>(() => pending.promise);
+  const kind = ctx.makeKind(buildStubFetch({}).fetch, slowRun);
+
+  void kind({
+    opServiceAccountToken: 'op-test-service-token',
+    sevenPct: 85,
+    slots: [
+      { id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' },
+      { id: 'slot-b', tokenRef: 'op://vault-test/item-b/credential' },
+    ],
+  });
+
+  expect(slowRun.mock.calls.map(([argv]) => argv)).toStrictEqual([
+    ['op', 'read', 'op://vault-test/item-a/credential'],
+    ['op', 'read', 'op://vault-test/item-b/credential'],
   ]);
 });
 
@@ -165,7 +153,6 @@ test('it throws naming the slot when a 429 has no use headers', () => {
 
   const faults = kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
   });
@@ -187,7 +174,6 @@ test('it throws naming the slot and status when the answer has no use headers', 
 
   const faults = kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
   });
@@ -209,7 +195,6 @@ test('it throws without the reference or any token when op read exits 1', () => 
 
   const faults = kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
   });
@@ -224,7 +209,6 @@ test('it throws naming only the slot and the error name when the messages API gi
 
   const faults = kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
   });
@@ -242,7 +226,6 @@ test('it throws when op read exits 0 with an empty token', () => {
 
   const faults = kind({
     opServiceAccountToken: 'op-test-service-token',
-    fivePct: 90,
     sevenPct: 85,
     slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
   });
@@ -257,13 +240,11 @@ test('it reads each slot once over 30 one-minute runs of a check at everyMin 30'
     '/v1/messages': [
       new Response(null, {
         headers: {
-          'anthropic-ratelimit-unified-5h-utilization': '0.1',
           'anthropic-ratelimit-unified-7d-utilization': '0.2',
         },
       }),
       new Response(null, {
         headers: {
-          'anthropic-ratelimit-unified-5h-utilization': '0.1',
           'anthropic-ratelimit-unified-7d-utilization': '0.2',
         },
       }),
@@ -278,7 +259,6 @@ test('it reads each slot once over 30 one-minute runs of a check at everyMin 30'
       kind: 'quota-anthropic',
       everyMin: 30,
       opServiceAccountToken: 'op-test-service-token',
-      fivePct: 90,
       sevenPct: 85,
       slots: [
         { id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' },

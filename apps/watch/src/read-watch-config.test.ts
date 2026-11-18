@@ -52,7 +52,6 @@ test('it loads the committed example config, which names only placeholder hosts,
         kind: 'quota-anthropic',
         everyMin: 30,
         opServiceAccountToken: 'OP_SERVICE_ACCOUNT_TOKEN',
-        fivePct: 90,
         sevenPct: 85,
         slots: [
           { id: 'slot-a', tokenRef: 'op://VAULT_ID/ITEM_ID_A/credential' },
