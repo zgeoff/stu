@@ -1,0 +1,19 @@
+{
+  "name": "@stu/alerts-axiom",
+  "private": true,
+  "description": "The alerts-axiom kind, which reads the newest notification of each Axiom monitor",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@stu/model": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@stu/faults": "workspace:*"
+  }
+}

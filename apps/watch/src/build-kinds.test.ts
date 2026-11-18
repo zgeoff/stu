@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHostLinux } from '@stu/host-linux';
+import type { FetchHTTP } from '@stu/model';
+import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
 import { createAtcSocketClient } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import type { StubAtcSession } from '@stu/notifier-atc/test-utils/start-stub-atc';
@@ -25,7 +27,12 @@ async function setupTest() {
 
   return {
     procRoot,
-    createKinds: async (sessions: readonly StubAtcSession[]) => {
+    createKinds: async (
+      sessions: readonly StubAtcSession[],
+
+      // what the alert and quota kinds call in place of the network
+      fetch: FetchHTTP,
+    ) => {
       const atc = await startStubAtc(folder, {
         protocol: 14,
         unknownLost: [],
@@ -50,13 +57,17 @@ async function setupTest() {
         net: createProbeNet(),
         sessions: createSessionsAtc(client),
         readNowMs: () => 1_794_900_000_000,
+        run: () => Promise.resolve({ code: 0, stdout: 'test-slot-token\n' }),
+        fetch,
+        opEnv: { PATH: '/usr/bin', HOME: '/tmp/stu-test' },
       });
     },
   };
 }
 
-// The example's hosts are placeholders, so the net checks go to local servers instead, which keeps
-// the test off the network; every other param is the example's.
+// The example's hosts and secrets are placeholders, so the net checks go to local servers and the
+// alert and quota kinds to a stub fetch, which keeps the test off the network; every other param is
+// the example's.
 test('it runs every check of the example config without a throw', async () => {
   const ctx = await setupTest();
 
@@ -82,12 +93,27 @@ test('it runs every check of the example config without a throw', async () => {
 
   onTestFinished(() => http.stop());
 
-  const kinds = await ctx.createKinds([
-    {
-      descriptor: buildMockSessionDescriptor({ id: 's1-k9q1r', name: 'build-lane' }),
-      lastActivityAt: 1_794_900_000_000,
-    },
-  ]);
+  const usageHeaders = {
+    'anthropic-ratelimit-unified-7d-utilization': '0.2',
+  };
+
+  const api = buildStubFetch({
+    '/api/datasources/proxy/uid/PROMETHEUS_UID/api/v1/query': [
+      Response.json({ status: 'success', data: { resultType: 'vector', result: [] } }),
+    ],
+    '/v2/monitors': [Response.json([])],
+    '/v1/messages': Array.from({ length: 4 }, () => new Response(null, { headers: usageHeaders })),
+  });
+
+  const kinds = await ctx.createKinds(
+    [
+      {
+        descriptor: buildMockSessionDescriptor({ id: 's1-k9q1r', name: 'build-lane' }),
+        lastActivityAt: 1_794_900_000_000,
+      },
+    ],
+    api.fetch,
+  );
 
   const localTargets: Readonly<Record<string, Readonly<Record<string, unknown>>>> = {
     tcp: { host: '127.0.0.1', port: tcp.port },
@@ -111,16 +137,19 @@ test('it runs every check of the example config without a throw', async () => {
 test('it gives the dead session kind the sessions atc lists', async () => {
   const ctx = await setupTest();
 
-  const kinds = await ctx.createKinds([
-    {
-      descriptor: buildMockSessionDescriptor({
-        id: 's1-k9q1r',
-        name: 'build-lane',
-        lifecycle: { desired: 'run', vm: 'none', harness: 'exited', attachment: 'local' },
-      }),
-      lastActivityAt: 1_794_900_000_000,
-    },
-  ]);
+  const kinds = await ctx.createKinds(
+    [
+      {
+        descriptor: buildMockSessionDescriptor({
+          id: 's1-k9q1r',
+          name: 'build-lane',
+          lifecycle: { desired: 'run', vm: 'none', harness: 'exited', attachment: 'local' },
+        }),
+        lastActivityAt: 1_794_900_000_000,
+      },
+    ],
+    buildStubFetch({}).fetch,
+  );
 
   const faults = await kinds['session-dead']?.({});
 
@@ -135,12 +164,15 @@ test('it gives the dead session kind the sessions atc lists', async () => {
 test('it gives the stuck session kind the last activity atc reads for each session', async () => {
   const ctx = await setupTest();
 
-  const kinds = await ctx.createKinds([
-    {
-      descriptor: buildMockSessionDescriptor({ id: 's2-m4x2p', name: 'idle-lane' }),
-      lastActivityAt: 1_794_900_000_000 - 45 * 60_000,
-    },
-  ]);
+  const kinds = await ctx.createKinds(
+    [
+      {
+        descriptor: buildMockSessionDescriptor({ id: 's2-m4x2p', name: 'idle-lane' }),
+        lastActivityAt: 1_794_900_000_000 - 45 * 60_000,
+      },
+    ],
+    buildStubFetch({}).fetch,
+  );
 
   const faults = await kinds['session-stuck']?.({ stuckMin: 30 });
 
@@ -152,12 +184,15 @@ test('it gives the stuck session kind the last activity atc reads for each sessi
 test('it gives the stuck session kind no fault for a session active within stuckMin', async () => {
   const ctx = await setupTest();
 
-  const kinds = await ctx.createKinds([
-    {
-      descriptor: buildMockSessionDescriptor({ id: 's3-p7w2c', name: 'busy-lane' }),
-      lastActivityAt: 1_794_900_000_000 - 10 * 60_000,
-    },
-  ]);
+  const kinds = await ctx.createKinds(
+    [
+      {
+        descriptor: buildMockSessionDescriptor({ id: 's3-p7w2c', name: 'busy-lane' }),
+        lastActivityAt: 1_794_900_000_000 - 10 * 60_000,
+      },
+    ],
+    buildStubFetch({}).fetch,
+  );
 
   const faults = await kinds['session-stuck']?.({ stuckMin: 30 });
 

@@ -1,0 +1,19 @@
+{
+  "name": "@stu/alerts-prometheus",
+  "private": true,
+  "description": "The alerts-prometheus kind, which reads the firing Prometheus alerts through Grafana",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@stu/model": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@stu/faults": "workspace:*"
+  }
+}
