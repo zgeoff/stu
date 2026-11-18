@@ -1,86 +1,78 @@
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, readdir, rm } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { Subprocess } from 'bun';
-import { isLiveProcessStat } from './is-live-process-stat.ts';
-import { parseChildPIDs } from './parse-child-pids.ts';
+import { isRunEnviron } from './is-run-environ.ts';
+import { parseProcessStat } from './parse-process-stat.ts';
 
 export interface RunProcesses {
   readonly root: string;
+  readonly home: string;
   readonly daemon: Subprocess;
-
-  // the daemon's children read once the session started, in case the daemon is gone at stop
-  readonly sessionPIDs: readonly number[];
 }
 
-// wringer kills the launcher 5 s after its SIGTERM, so the session gets 3 s, then SIGKILL.
-const SESSION_EXIT_GRACE_MS = 3000;
-const SESSION_KILL_WAIT_MS = 1000;
+// wringer kills the launcher 5 s after its SIGTERM, so the run's other processes get 3 s, then
+// SIGKILL.
+const EXIT_GRACE_MS = 3000;
+const KILL_WAIT_MS = 1000;
 
-// atc starts each session's claude as a child of the daemon in a process group of its own, so the
-// SIGTERM to the launcher's group never reaches it. A claude that outlives the root writes its HOME
-// back into the removed root, so the root goes only once every child has exited.
+// atc starts each session's claude in a process group of its own, so the SIGTERM to the launcher's
+// group never reaches it or the hooks it runs. Any of them that outlives the root writes into its
+// HOME and brings the root back, so the root goes only once no live process has HOME in it.
 export async function removeRun(run: RunProcesses): Promise<void> {
-  const daemonChildren = await readChildPIDs(run.daemon.pid);
-
-  const children = [...new Set([...run.sessionPIDs, ...daemonChildren])];
-
   run.daemon.kill('SIGTERM');
 
   await run.daemon.exited;
 
-  const survivors = await waitForExit(children, SESSION_EXIT_GRACE_MS);
+  const survivors = await waitForRunExit(run.home, EXIT_GRACE_MS);
 
   for (const pid of survivors) {
     killProcess(pid);
   }
 
-  await waitForExit(survivors, SESSION_KILL_WAIT_MS);
-  await rm(run.root, { recursive: true, force: true });
-}
+  await waitForRunExit(run.home, KILL_WAIT_MS);
 
-export async function readChildPIDs(pid: number): Promise<number[]> {
-  const path = `/proc/${String(pid)}/task/${String(pid)}/children`;
-
-  try {
-    const children = await readFile(path, 'utf8');
-
-    return parseChildPIDs(children);
-  } catch {
-    // the daemon has exited, and its children list with it
-    return [];
-  }
+  // rm's own retries cover a file written into the root while it removes it
+  await rm(run.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
 
 const EXIT_POLL_INTERVAL_MS = 100;
 
-async function waitForExit(pids: readonly number[], timeoutMs: number): Promise<number[]> {
+async function waitForRunExit(home: string, timeoutMs: number): Promise<number[]> {
   const deadlineMs = performance.now() + timeoutMs;
 
-  let live = await readLivePIDs(pids);
+  let live = await readRunPIDs(home);
 
   while (live.length > 0 && performance.now() < deadlineMs) {
     await sleep(EXIT_POLL_INTERVAL_MS);
 
-    live = await readLivePIDs(live);
+    live = await readRunPIDs(home);
   }
 
   return live;
 }
 
-async function readLivePIDs(pids: readonly number[]): Promise<number[]> {
-  const probed = await Promise.all(
-    pids.map(async (pid) => ({ pid, live: await probeProcess(pid) })),
-  );
+async function readRunPIDs(home: string): Promise<number[]> {
+  const entries = await readdir('/proc');
 
-  return probed.filter((process) => process.live).map((process) => process.pid);
+  const pids = entries.filter((entry) => /^\d+$/u.test(entry)).map(Number);
+
+  const found = await Promise.all(pids.map((pid) => probeRunProcess(pid, home)));
+
+  return pids.filter((_pid, index) => found[index] === true);
 }
 
-async function probeProcess(pid: number): Promise<boolean> {
+// A zombie writes nothing, so it counts as gone.
+async function probeRunProcess(pid: number, home: string): Promise<boolean> {
   try {
-    const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8');
+    const statText = await readFile(`/proc/${String(pid)}/stat`, 'utf8');
 
-    return isLiveProcessStat(stat);
+    const stat = parseProcessStat(statText);
+
+    const environ = await readFile(`/proc/${String(pid)}/environ`, 'utf8');
+
+    return stat.state !== 'Z' && stat.state !== 'X' && isRunEnviron(environ, home);
   } catch {
+    // the process exited between the listing and the read, or belongs to another user
     return false;
   }
 }
