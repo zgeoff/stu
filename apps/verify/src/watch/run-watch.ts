@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { WringerError } from '@wringer/core';
 import type { DriveContext } from '@wringer/core';
-import { parseRunEndpoints } from '../run/parse-run-endpoints.ts';
+import { RUN_ENDPOINTS_SCHEMA } from '../run/run-endpoints-schema.ts';
 import { buildWatchCommand } from './build-watch-command.ts';
 import { buildWatchConfig } from './build-watch-config.ts';
 
@@ -14,7 +14,7 @@ export async function runWatch(
   ctx: DriveContext,
   port: 'closed' | 'open',
 ): Promise<{ stdout: string }> {
-  const run = parseRunEndpoints(ctx.endpoints);
+  const run = RUN_ENDPOINTS_SCHEMA.parse(ctx.endpoints);
   const probePort = Number(run.probePort);
   const configPath = join(run.root, 'stu-watch.config.json');
 

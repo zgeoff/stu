@@ -8,7 +8,7 @@ import type { AtcSocketClient } from '@stu/notifier-atc';
 import type { Subprocess } from 'bun';
 import { openRunAtc } from '../run/open-run-atc.ts';
 import { parseAtcBody } from '../run/parse-atc-body.ts';
-import type { RunEndpoints } from '../run/parse-run-endpoints.ts';
+import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
 
 const DAEMON_READY_TIMEOUT_MS = 30_000;
 const DAEMON_POLL_INTERVAL_MS = 100;

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // The paths, ids and port of one run, which the launcher prints on its ready line. Each value is a
 // string, because wringer keeps a run's endpoints as a record of strings.
-const RUN_ENDPOINTS_SCHEMA = z.object({
+export const RUN_ENDPOINTS_SCHEMA = z.object({
   root: z.string().min(1),
   home: z.string().min(1),
   runtime: z.string().min(1),
@@ -16,7 +16,3 @@ const RUN_ENDPOINTS_SCHEMA = z.object({
 });
 
 export type RunEndpoints = z.output<typeof RUN_ENDPOINTS_SCHEMA>;
-
-export function parseRunEndpoints(value: unknown): RunEndpoints {
-  return RUN_ENDPOINTS_SCHEMA.parse(value);
-}

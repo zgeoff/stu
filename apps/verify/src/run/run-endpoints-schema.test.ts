@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { parseRunEndpoints } from './parse-run-endpoints.ts';
+import { RUN_ENDPOINTS_SCHEMA } from './run-endpoints-schema.ts';
 
 test('it reads the run endpoints from a ready line and drops the event', () => {
   const line = {
@@ -12,7 +12,7 @@ test('it reads the run endpoints from a ready line and drops the event', () => {
     probePort: '40123',
   };
 
-  expect(parseRunEndpoints(line)).toStrictEqual({
+  expect(RUN_ENDPOINTS_SCHEMA.parse(line)).toStrictEqual({
     root: '/tmp/stu-verify-pear',
     home: '/tmp/stu-verify-pear/home',
     runtime: '/tmp/stu-verify-pear/run',
@@ -32,7 +32,7 @@ test.each(['', 'port', '40123a'])('it rejects the probe port %p', (probePort) =>
     probePort,
   };
 
-  expect(() => parseRunEndpoints(line)).toThrow();
+  expect(() => RUN_ENDPOINTS_SCHEMA.parse(line)).toThrow();
 });
 
 test('it rejects a line with no session', () => {
@@ -44,5 +44,5 @@ test('it rejects a line with no session', () => {
     probePort: '40123',
   };
 
-  expect(() => parseRunEndpoints(line)).toThrow();
+  expect(() => RUN_ENDPOINTS_SCHEMA.parse(line)).toThrow();
 });

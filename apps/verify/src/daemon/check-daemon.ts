@@ -4,7 +4,7 @@ import { WringerError } from '@wringer/core';
 import { z } from 'zod';
 import { openRunAtc } from '../run/open-run-atc.ts';
 import { parseAtcBody } from '../run/parse-atc-body.ts';
-import type { RunEndpoints } from '../run/parse-run-endpoints.ts';
+import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
 import { isInsideFolder } from './is-inside-folder.ts';
 
 const SESSION_GET_SCHEMA = z.object({

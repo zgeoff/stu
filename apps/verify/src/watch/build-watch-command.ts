@@ -1,4 +1,4 @@
-import type { RunEndpoints } from '../run/parse-run-endpoints.ts';
+import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
 
 export interface WatchProgram {
   // the PATH the watcher runs with, which finds `bun`

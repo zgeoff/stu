@@ -2,7 +2,7 @@ import { EVENTS_PAGE_SCHEMA, MESSAGE_VIEW_SCHEMA } from '@atcx/contract';
 import { z } from 'zod';
 import { openRunAtc } from '../run/open-run-atc.ts';
 import { parseAtcBody } from '../run/parse-atc-body.ts';
-import type { RunEndpoints } from '../run/parse-run-endpoints.ts';
+import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
 import { collectMessageIDs } from './collect-message-ids.ts';
 
 export const INBOX_MESSAGE_SCHEMA = z.strictObject({
