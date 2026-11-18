@@ -1,9 +1,4 @@
 {
-  "GHSA-fc5q-39xc-vjpf": {
-    "package": "picomatch",
-    "reason": "No published release of picomatch fixes it.",
-    "expires": "2026-12-18"
-  },
   "GHSA-g3hv-75wg-m249": {
     "package": "minimatch",
     "reason": "The fix is minimatch 11.0.5 through eslint 10.15.0, which takes @eslint/config-array 0.23.6; eslint 10.15.0 passes the 7-day minimumReleaseAge gate on 2026-11-20.",
