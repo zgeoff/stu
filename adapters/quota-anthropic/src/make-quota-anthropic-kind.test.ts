@@ -141,6 +141,39 @@ test('it throws without the reference or any token when op read exits 1', () => 
   expect(faults).rejects.toThrowWithMessage(Error, 'slot slot-a: op read failed (exit 1)');
 });
 
+test('it throws naming only the slot and the error name when the messages API gives no answer', () => {
+  const ctx = setupTest();
+  const anthropic = buildStubFetch({ '/v1/messages': [new TypeError('fetch failed')] });
+  const kind = ctx.makeKind(anthropic.fetch, ctx.run);
+
+  const faults = kind({
+    opServiceAccountToken: 'op-test-service-token',
+    fivePct: 90,
+    sevenPct: 85,
+    slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
+  });
+
+  expect(faults).rejects.toThrowWithMessage(
+    Error,
+    'slot slot-a: the messages API gave no answer (TypeError)',
+  );
+});
+
+test('it throws when op read exits 0 with an empty token', () => {
+  const ctx = setupTest();
+  const emptyRun = mock<RunProgram>(() => Promise.resolve({ code: 0, stdout: '\n' }));
+  const kind = ctx.makeKind(buildStubFetch({}).fetch, emptyRun);
+
+  const faults = kind({
+    opServiceAccountToken: 'op-test-service-token',
+    fivePct: 90,
+    sevenPct: 85,
+    slots: [{ id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' }],
+  });
+
+  expect(faults).rejects.toThrowWithMessage(Error, 'slot slot-a: op read failed (exit 0)');
+});
+
 test('it reads each slot once over 30 one-minute runs of a check at everyMin 30', async () => {
   const ctx = setupTest();
 
