@@ -8,6 +8,7 @@ import type { Fault } from '@stu/model';
 import { readReported, writeReported } from '@stu/state-file';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
+import type { WatchOnce } from './run-watch-once.ts';
 import { buildSeeder } from './test-utils/build-seeder.ts';
 
 async function setupTest() {
@@ -18,7 +19,6 @@ async function setupTest() {
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
   return {
-    folder,
     notifier,
     seed: buildSeeder({ folder, stateFolder: join(folder, 'atc-state') }),
     runAt: (configPath: string, at: string, faults: readonly Fault[]) =>
@@ -29,6 +29,14 @@ async function setupTest() {
         createNotifier: () => notifier,
         readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
         sleepMs: () => new Promise(() => {}),
+        readConfig: readWatchConfig,
+        readReported,
+        writeReported,
+      }),
+    run: (watch: Pick<WatchOnce, 'configPath' | 'kinds' | 'at' | 'readNowMs' | 'sleepMs'>) =>
+      runWatchOnce({
+        ...watch,
+        createNotifier: () => notifier,
         readConfig: readWatchConfig,
         readReported,
         writeReported,
@@ -75,20 +83,16 @@ test('it opens a cannot-run fault for a check whose kind runs past 30 seconds', 
 
   const asked: number[] = [];
 
-  await runWatchOnce({
+  await ctx.run({
     configPath,
     kinds: { tcp: () => new Promise(() => {}) },
     at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
-    createNotifier: () => ctx.notifier,
     readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
     sleepMs: (durationMs) => {
       asked.push(durationMs);
 
       return Promise.resolve();
     },
-    readConfig: readWatchConfig,
-    readReported,
-    writeReported,
   });
 
   expect(asked).toStrictEqual([30_000]);
@@ -102,19 +106,16 @@ test('it starts no send 35 seconds after the run starts, and keeps the send owed
   const ctx = await setupTest();
   const configPath = await ctx.seed.watchConfig({ checks: [{ id: 'tunnel', kind: 'tcp' }] });
 
-  const result = await runWatchOnce({
+  const result = await ctx.run({
     configPath,
     kinds: { tcp: makeStubKind([[{ key: 'a:22', line: 'no answer from a:22' }]]) },
     at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
-    createNotifier: () => ctx.notifier,
     readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:35Z').epochMilliseconds,
     sleepMs: () => new Promise(() => {}),
-    readConfig: readWatchConfig,
-    readReported,
-    writeReported,
   });
 
-  const stored = await readReported(join(ctx.folder, 'reported.json'));
+  const config = await readWatchConfig(configPath);
+  const stored = await readReported(config.statePath);
 
   expect(ctx.notifier.sent).toStrictEqual([]);
 
@@ -129,16 +130,12 @@ test('it sends a message that starts just under 35 seconds after the run starts'
   const ctx = await setupTest();
   const configPath = await ctx.seed.watchConfig({ checks: [{ id: 'tunnel', kind: 'tcp' }] });
 
-  await runWatchOnce({
+  await ctx.run({
     configPath,
     kinds: { tcp: makeStubKind([[{ key: 'a:22', line: 'no answer from a:22' }]]) },
     at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
-    createNotifier: () => ctx.notifier,
     readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:34.999Z').epochMilliseconds,
     sleepMs: () => new Promise(() => {}),
-    readConfig: readWatchConfig,
-    readReported,
-    writeReported,
   });
 
   expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([

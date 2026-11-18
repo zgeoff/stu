@@ -1,6 +1,5 @@
 import type { Fault, Kind } from '@stu/model';
 
-// Resolves after durationMs, and stops waiting when the signal aborts.
 export type SleepMs = (durationMs: number, signal: AbortSignal) => Promise<void>;
 
 // The kind's own work keeps running past the timeout; the program exits at the end of the run,

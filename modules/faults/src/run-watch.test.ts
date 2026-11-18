@@ -182,12 +182,13 @@ test('it resends a failed send once on the next run under the same idempotency k
   await ctx.runAt('2026-11-17T08:01:00Z', checks, kinds, notifier);
   await ctx.runAt('2026-11-17T08:02:00Z', checks, kinds, notifier);
 
-  const [first, second] = notifier.sent;
+  const message = {
+    text: 'FAULT disk-main:/home: /home is 95% full',
+    idempotencyKey: expect.stringMatching(/^stu-watch:[0-9a-f]{32}$/u),
+  };
 
-  expect(notifier.sent).toHaveLength(2);
-  expect(first?.text).toBe('FAULT disk-main:/home: /home is 95% full');
-  expect(first?.idempotencyKey).toMatch(/^stu-watch:[0-9a-f]{32}$/u);
-  expect(second).toStrictEqual(first);
+  expect(notifier.sent).toStrictEqual([message, message]);
+  expect(notifier.sent[1]).toStrictEqual(notifier.sent[0]);
 });
 
 test('it keeps a failed send owed in the file', async () => {
