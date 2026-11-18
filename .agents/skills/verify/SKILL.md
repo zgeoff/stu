@@ -120,9 +120,12 @@ that command alone. A command with neither runs on the registry's first target, 
 
 <!-- repo: targets -->
 
-| Target  | Start with                                            | Access     | Notes                                                                                                                     |
-| ------- | ----------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `local` | `bun verify use --target local`, then `bun verify up` | read-write | Starts a throwaway atc daemon from the `atc` on `PATH` in a `/tmp/stu-verify-*` home, with one inbox session of `claude`. |
+| Target  | Start with                                            | Access     | Notes                                                                                                                                     |
+| ------- | ----------------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `local` | `bun verify use --target local`, then `bun verify up` | read-write | Starts a throwaway atc daemon from the `atc` on `PATH` in a `/tmp/stu-verify-*` folder, with one `claude` session that gets the messages. |
+
+`run-watch` runs the watcher from your worktree. Any edit fails the next command with
+`doctor-required`.
 
 <!-- /repo -->
 
@@ -140,10 +143,10 @@ for its commands.
 <!-- repo: commands -->
 
 - Run `bun verify action run-watch --port closed` before `bun verify action run-watch --port open`.
-  The closed run opens the fault, and the open run recovers it. Each run of the watcher reads the
-  reported file the last run wrote, in the run's home.
-- `bun verify inbox` lists every message the inbox session got since `up`, oldest first. A second
-  pass of a journey adds its messages after the first pass's, so read the last ones.
+  The watcher keeps its reported faults in the run's folder. After a failed pass, run `up --restart`
+  for a fresh folder.
+- `bun verify inbox` lists the session's messages since `up`, oldest first. Each pass of a journey
+  adds two, so read the last two.
 
 <!-- /repo -->
 
