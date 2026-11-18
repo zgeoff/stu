@@ -1,5 +1,5 @@
 import { closeSync, openSync } from 'node:fs';
-import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { SPAWN_ANSWER_SCHEMA } from '@atcx/contract';
@@ -9,6 +9,7 @@ import type { Subprocess } from 'bun';
 import { openRunAtc } from '../run/open-run-atc.ts';
 import { parseAtcBody } from '../run/parse-atc-body.ts';
 import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
+import { readChildPIDs, removeRun } from './remove-run.ts';
 
 const DAEMON_READY_TIMEOUT_MS = 30_000;
 const DAEMON_POLL_INTERVAL_MS = 100;
@@ -40,12 +41,8 @@ export async function runLocalDaemon(env: Readonly<Record<string, string | undef
 
   closeSync(log);
 
-  const stop = async () => {
-    daemon.kill('SIGTERM');
-
-    await daemon.exited;
-    await rm(root, { recursive: true, force: true });
-  };
+  const sessionPIDs: number[] = [];
+  const stop = () => removeRun({ root, daemon, sessionPIDs });
 
   const stopAndExit = async () => {
     await stop();
@@ -65,6 +62,8 @@ export async function runLocalDaemon(env: Readonly<Record<string, string | undef
 
     const session = await createInboxSession(atc, root);
 
+    sessionPIDs.push(...(await readChildPIDs(daemon.pid)));
+
     run = { root, home, runtime, socket, session, probePort: String(readFreePort()) };
   } catch (error) {
     await stop();
@@ -76,7 +75,7 @@ export async function runLocalDaemon(env: Readonly<Record<string, string | undef
 
   const exitCode = await daemon.exited;
 
-  await rm(root, { recursive: true, force: true });
+  await stop();
 
   process.exitCode = exitCode;
 }
