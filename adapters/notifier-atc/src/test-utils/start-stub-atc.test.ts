@@ -2,6 +2,8 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { SESSION_DESCRIPTOR_SCHEMA } from '@atcx/contract';
+import { z } from 'zod';
 import { createAtcSocketClient } from '../create-atc-socket-client.ts';
 import { startStubAtc } from './start-stub-atc.ts';
 import type { StubAtcRules } from './start-stub-atc.ts';
@@ -372,6 +374,53 @@ test('it answers /session/list with the descriptor of each session its rules hol
     kind: 'answered',
     body: { sessions: [{ id: 's1-k9q1r', name: 'build-lane' }] },
   });
+});
+
+test('it answers /session/list with a recorded descriptor that the atc session schema accepts', async () => {
+  const ctx = await setupTest();
+
+  const stub = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
+    sendAnswer: null,
+    sessions: [
+      {
+        descriptor: {
+          id: 's1-k9q1r',
+          name: 'build-lane',
+          cwd: '/tmp/stu-test/work',
+          state: 'running',
+          unread: false,
+          lastMsg: 'reading the tests',
+          agent: 'claude',
+          pinned: false,
+          lastAttachedAt: 1_794_900_000_000,
+          repoRoot: '/tmp/stu-test/work',
+          namedBy: 'user',
+          createdAt: 1_794_800_000_000,
+          kind: 'pty',
+          alive: true,
+          canEject: false,
+          locator: { daemonID: 'daemon-test', targetID: 'local' },
+          lifecycle: { desired: 'run', vm: 'none', harness: 'exited', attachment: 'local' },
+        },
+        lastActivityAt: 1_794_900_000_000,
+      },
+    ],
+  });
+
+  const answer = await stub.client.read((procedures) => procedures.session.list({}));
+
+  const listAnswerSchema = z.object({
+    kind: z.literal('answered'),
+    body: z.object({ sessions: z.array(SESSION_DESCRIPTOR_SCHEMA) }),
+  });
+
+  expect(listAnswerSchema.safeParse(answer).success).toBeTrue();
 });
 
 test('it answers /session/get with the session and its last activity', async () => {
