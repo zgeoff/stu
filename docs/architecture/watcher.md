@@ -28,8 +28,48 @@ A check with `everyMin` runs when that many minutes have passed since its last r
 seconds of slack, so a timer that fires a little early still runs it. A run that throws still counts
 as a run, so a slow kind keeps its interval while it fails.
 
-The kinds get read-only ports. The session kinds read atc through a port that offers only reads, so
-no kind can send stu a message.
+The kinds get read-only ports, and no kind's package depends on the notifier, so no kind can send
+stu a message. The session kinds read atc through a port that offers only reads. The quota kind runs
+`op` through a port that returns the exit code and stdout and drops stderr.
+
+## The alert and quota kinds
+
+Three kinds read what other systems already watch. Each one throws when it cannot read its source,
+so the engine opens the check's cannot-run fault and reports none of the source's faults as
+recovered. A thrown message names only the check, a slot or monitor id, a status or an exit code. It
+never quotes a token, a URL, an `op://` reference or a response body, because the engine sends it to
+stu.
+
+| Kind                | Reads                                                                 | Fault key                                                                         |
+| ------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `alerts-prometheus` | `ALERTS{alertstate="firing"}`, through Grafana's datasource proxy     | the alert's labels without `__name__` and `alertstate`, sorted, as `name="value"` |
+| `alerts-axiom`      | each monitor's recent notifications, from Axiom's API                 | the monitor's id                                                                  |
+| `quota-anthropic`   | each Claude slot's unified rate-limit headers, from a 1-token request | the slot's id in the config                                                       |
+
+`alerts-prometheus` drops what Alertmanager never sends on. It drops `Watchdog` and `InfoInhibitor`,
+which Alertmanager routes to its null receiver. It also applies the chart's three default inhibit
+rules, where a missing label equals a missing label:
+
+- a `critical` alert silences a `warning` or `info` alert with the same `namespace` and `alertname`;
+- a `warning` alert silences an `info` alert with the same `namespace` and `alertname`;
+- a firing `InfoInhibitor` silences every `info` alert in its `namespace`.
+
+These rules are a copy of the observability stack's, so a change to the stack's inhibit rules needs
+the same change here.
+
+`alerts-axiom` counts a monitor as firing while the newest notification in its history is `open`.
+When an `open` and a `closed` notification share the newest time, the monitor counts as firing.
+Axiom records notifications sent, not state changes, so the kind reads only `Threshold` and
+`AnomalyDetection` monitors that are enabled and send resolved notices. The kind asks for no history
+of any other monitor, because its newest notification can stay `open` after its condition ends. A
+monitor type the kind doesn't know makes it throw. A monitor open for longer than the kind's history
+window with no new notification reads as resolved.
+
+`quota-anthropic` reads each slot's token with `op read`, one slot after another. A slot is over its
+limit when its `5h` use is at or above `fivePct`, or its `7d` use is at or above `sevenPct`. A slot
+over either line gives one fault, which names each window over its line. A 429 answer counts as a
+reading when it carries both use headers. When any slot cannot be read, the whole check throws, so a
+1Password outage opens one fault.
 
 ## What a fault owes stu
 

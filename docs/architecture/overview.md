@@ -14,6 +14,8 @@ flowchart LR
   kinds --> host[this PC: /proc, df]
   kinds --> net[tcp and http targets]
   kinds --> sessions[atc sessions]
+  kinds --> alerts[Grafana and Axiom]
+  kinds --> quota[1Password and the Claude API]
   run --> engine[engine]
   engine <--> file[reported file]
   engine --> notifier[atc notifier]
@@ -29,15 +31,17 @@ engine, the reported file and the sends.
 
 The watcher runs on the owner's PC, outside every atc session, and reaches atc through the daemon's
 unix socket. The check kinds read this PC directly, open TCP connections and HTTP requests to the
-targets in the config, and read the session list from atc. Every connection starts from the watcher,
-so nothing needs a public address.
+targets in the config, and read the session list from atc. The alert kinds ask Prometheus for its
+firing alerts through Grafana on the tailnet, and ask Axiom's API for each monitor's notifications.
+The quota kind reads each Claude slot's token with `op` and asks the Claude API for the slot's
+rate-limit use. Every connection starts from the watcher, so nothing needs a public address.
 
 ## Data
 
 The watcher keeps one JSON file, the reported file, which holds each fault stu has heard about and
 each message stu is still owed. It keeps nothing else, because the file is all it needs to avoid a
-repeat. Hostnames, tunnel addresses and session ids live in a local config that git ignores, because
-the repo is public. [Run the watcher](../guides/run-the-watcher.md) covers the config.
+repeat. Hostnames, tunnel addresses, session ids and tokens live in a local config that git ignores,
+because the repo is public. [Run the watcher](../guides/run-the-watcher.md) covers the config.
 
 ## Code layout
 

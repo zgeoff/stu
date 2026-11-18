@@ -14,8 +14,15 @@ at `~/.bun/bin/bun`, a running atc daemon, and the atc id of stu's session.
 
 2. Set `atc.session` to the atc id of stu's session.
 3. Edit `checks`. Each check gives a kind and its params. The kinds are `memory`, `disk`, `tcp`,
-   `http`, `session-dead` and `session-stuck`. `session-dead` takes no params. Each other kind lists
-   its params in the schema at the top of its `make-*-kind.ts` file in `adapters/`.
+   `http`, `session-dead`, `session-stuck`, `alerts-prometheus`, `alerts-axiom` and
+   `quota-anthropic`. `session-dead` takes no params. Each other kind lists its params in the schema
+   near the top of its `make-*-kind.ts` file in `adapters/`.
+4. For `alerts-prometheus`, set `grafanaURL`, the uid of Grafana's Prometheus datasource, and a
+   Grafana Viewer token.
+5. For `alerts-axiom`, set an Axiom token that can read the monitors and their datasets.
+6. For `quota-anthropic`, set a 1Password service account token and the `op://` reference of each
+   slot's token. Use the vault and item ids in each reference: 1Password counts a lookup by name as
+   three requests.
 
 The watcher reads a relative `statePath` from the config file's folder. git ignores
 `stu-watch.config.json` and `stu-watch.reported.json` wherever they are, because they hold private
@@ -24,7 +31,9 @@ names.
 ## Install the timer
 
 The service file runs the watcher from `~/stu`. When your clone is elsewhere, set `WorkingDirectory`
-in a drop-in with `systemctl --user edit stu-watch.service` after step 1.
+in a drop-in with `systemctl --user edit stu-watch.service` after step 1. The `quota-anthropic`
+check runs `op` from the service's `PATH`. When `op` is in another folder, set `Environment=PATH=`
+in the same drop-in.
 
 1. Link the units from the repo root:
 

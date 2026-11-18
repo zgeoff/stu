@@ -8,6 +8,7 @@ import { readReported, writeReported } from '@stu/state-file';
 import packageJSON from '../package.json' with { type: 'json' };
 import { buildKinds } from './build-kinds.ts';
 import { readWatchConfig } from './read-watch-config.ts';
+import { runProgram } from './run-program.ts';
 import { runWatchOnce } from './run-watch-once.ts';
 
 // The systemd user timer runs `bun apps/watch/src/main.ts <config path>` once a minute.
@@ -32,6 +33,9 @@ const result = await runWatchOnce({
     net: createProbeNet(),
     sessions: createSessionsAtc(atc),
     readNowMs: () => Date.now(),
+    run: runProgram,
+    messagesURL: 'https://api.anthropic.com/v1/messages',
+    opEnv: { PATH: process.env['PATH'] ?? '', HOME: process.env['HOME'] ?? '' },
   }),
   createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),
   readNowMs: () => Date.now(),

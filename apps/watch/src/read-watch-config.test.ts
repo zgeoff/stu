@@ -16,7 +16,7 @@ async function setupTest() {
   };
 }
 
-test('it loads the committed example config, which names only placeholder hosts and session', async () => {
+test('it loads the committed example config, which names only placeholder hosts, session and secrets', async () => {
   const examplePath = join(import.meta.dir, '..', 'stu-watch.config.example.json');
 
   const config = await readWatchConfig(examplePath);
@@ -32,6 +32,35 @@ test('it loads the committed example config, which names only placeholder hosts 
       { id: 'public-route', kind: 'http', everyMin: 5, url: 'https://app.example/health' },
       { id: 'sessions-dead', kind: 'session-dead' },
       { id: 'sessions-stuck', kind: 'session-stuck', stuckMin: 30 },
+      {
+        id: 'prometheus',
+        kind: 'alerts-prometheus',
+        everyMin: 1,
+        grafanaURL: 'https://grafana.example.invalid',
+        datasourceUID: 'PROMETHEUS_UID',
+        token: 'GRAFANA_VIEWER_TOKEN',
+      },
+      {
+        id: 'axiom',
+        kind: 'alerts-axiom',
+        everyMin: 5,
+        apiURL: 'https://api.axiom.co',
+        token: 'AXIOM_API_TOKEN',
+      },
+      {
+        id: 'claude-quota',
+        kind: 'quota-anthropic',
+        everyMin: 30,
+        opServiceAccountToken: 'OP_SERVICE_ACCOUNT_TOKEN',
+        fivePct: 90,
+        sevenPct: 85,
+        slots: [
+          { id: 'slot-a', tokenRef: 'op://VAULT_ID/ITEM_ID_A/credential' },
+          { id: 'slot-b', tokenRef: 'op://VAULT_ID/ITEM_ID_B/credential' },
+          { id: 'slot-c', tokenRef: 'op://VAULT_ID/ITEM_ID_C/credential' },
+          { id: 'slot-d', tokenRef: 'op://VAULT_ID/ITEM_ID_D/credential' },
+        ],
+      },
     ],
   });
 });
