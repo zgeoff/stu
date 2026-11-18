@@ -1,4 +1,7 @@
-import { expect, test } from 'bun:test';
+import { expect, onTestFinished, test } from 'bun:test';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runProgram } from './run-program.ts';
 
 test('it gives the exit code and stdout, and passes only the env it is given', async () => {
@@ -23,4 +26,25 @@ test('it kills a program that runs past the timeout and gives a non-zero code', 
   const result = await runProgram(['/bin/sh', '-c', 'exec sleep 5'], { env: {}, timeoutMs: 50 });
 
   expect(result.code).not.toBe(0);
+});
+
+test('it gives a killed program exit 137 and an empty stdout while a child it started still holds stdout open', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
+
+  const pidPath = join(folder, 'child.pid');
+
+  onTestFinished(async () => {
+    const childPID = await readFile(pidPath, 'utf8');
+
+    process.kill(Number(childPID), 'SIGKILL');
+
+    await rm(folder, { recursive: true, force: true });
+  });
+
+  const result = await runProgram(['/bin/sh', '-c', `sleep 30 & echo $! > ${pidPath}; wait`], {
+    env: {},
+    timeoutMs: 500,
+  });
+
+  expect(result).toStrictEqual({ code: 137, stdout: '' });
 });
