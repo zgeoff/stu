@@ -2,8 +2,6 @@ import type { AtcAnswer } from '@stu/model';
 import { match } from 'ts-pattern';
 import type { z } from 'zod';
 
-// The body of an answered call, parsed with the schema; a refusal or an unreached daemon throws
-// with the procedure's name and the cause.
 export function parseAtcBody<Schema extends z.ZodType>(
   procedure: string,
   answer: AtcAnswer,

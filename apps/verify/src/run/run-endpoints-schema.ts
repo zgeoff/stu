@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
-// The paths, ids and port of one run, which the launcher prints on its ready line. Each value is a
-// string, because wringer keeps a run's endpoints as a record of strings.
+// Each value is a string, because wringer keeps a run's endpoints as a record of strings.
 export const RUN_ENDPOINTS_SCHEMA = z.object({
   root: z.string().min(1),
   home: z.string().min(1),

@@ -11,9 +11,8 @@ const SESSION_GET_SCHEMA = z.object({
   session: SESSION_DESCRIPTOR_SCHEMA.pick({ lifecycle: true }),
 });
 
-// The doctor's daemon check: the socket sits in the run's own root, never the caller's daemon, and
-// the inbox session's claude runs, since atc refuses a message to a dead session. It compares real
-// paths, so a link in the root to another daemon's socket fails it.
+// Real paths, so a link in the root to another daemon's socket fails. A dead session fails here,
+// because atc refuses a message to it and the journey would fail later with less to go on.
 export async function checkDaemon(
   atc: AtcReader,
   run: RunEndpoints,

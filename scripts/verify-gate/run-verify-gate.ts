@@ -2,8 +2,6 @@ import { join } from 'node:path';
 import { match } from 'ts-pattern';
 import { readGateInput } from './read-gate-input.ts';
 
-// The step of the `verify / gate` check: it writes the pull request's body to a file and runs
-// `bun verify gate` against the merge base with the base branch.
 export async function runVerifyGate(env: Readonly<Record<string, string | undefined>>) {
   const eventPath = env['GITHUB_EVENT_PATH'];
   const tempDirectory = env['RUNNER_TEMP'];
