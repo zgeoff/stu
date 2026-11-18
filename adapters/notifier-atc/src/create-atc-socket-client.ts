@@ -53,7 +53,7 @@ async function runAtcCall(
       // timeout's wait, and it may come after the request reached atc, so it answers unreached.
       try {
         return await Promise.race([
-          writeAtcCall(procedures, { client: options.client, protocol }, call),
+          runAtcProcedure(procedures, { client: options.client, protocol }, call),
           endCallOnTimeout(connection.socket, options.timeoutMs),
         ]);
       } catch (error) {
@@ -181,7 +181,7 @@ interface AtcHello {
 
 // A reset socket or a line the peer cannot read may come after the request reached atc, so it
 // answers unreached, and the caller resends under the same key.
-async function writeAtcCall(
+async function runAtcProcedure(
   procedures: AtcProcedures,
   hello: AtcHello,
   call: AtcCall,
