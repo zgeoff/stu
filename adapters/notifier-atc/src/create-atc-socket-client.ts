@@ -54,7 +54,7 @@ async function runAtcCall(
       try {
         return await Promise.race([
           writeAtcCall(connection.socket, hello, call),
-          waitForSilence(connection.socket, options.timeoutMs),
+          endCallOnTimeout(connection.socket, options.timeoutMs),
         ]);
       } catch (error) {
         return { kind: 'unreached' as const, reason: formatCause(error) };
@@ -82,7 +82,7 @@ async function createAtcConnection(options: AtcSocketOptions): Promise<AtcConnec
     try {
       return await Promise.race([
         waitForConnect(socket),
-        waitForSilence(socket, options.timeoutMs),
+        endCallOnTimeout(socket, options.timeoutMs),
       ]);
     } catch (error) {
       socket.destroy();
@@ -107,9 +107,9 @@ async function waitForConnect(socket: Socket): Promise<AtcConnection> {
   return { kind: 'connected', socket };
 }
 
-// The socket's idle timer, armed before the connect, so a daemon that never accepts and one that
-// never answers both end the call.
-async function waitForSilence(
+// Waits for the socket's idle timer, armed before the connect, then destroys the socket and answers
+// unreached, so a daemon that never accepts and one that never answers both end the call.
+async function endCallOnTimeout(
   socket: Socket,
   timeoutMs: number,
 ): Promise<{ readonly kind: 'unreached'; readonly reason: string }> {
