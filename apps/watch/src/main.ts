@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import { createHostLinux } from '@stu/host-linux';
 import { createAtcNotifier, createAtcSocketClient, readAtcSocketPaths } from '@stu/notifier-atc';
@@ -34,6 +35,10 @@ const result = await runWatchOnce({
   }),
   createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),
   readNowMs: () => Date.now(),
+
+  // node's sleep, not Bun.sleep: it takes an AbortSignal, so a kind that answers in time leaves no
+  // timer running.
+  sleepMs: (durationMs, signal) => sleep(durationMs, undefined, { signal }),
   readConfig: readWatchConfig,
   readReported,
   writeReported,

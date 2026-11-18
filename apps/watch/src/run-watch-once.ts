@@ -3,6 +3,7 @@ import type { WatchResult } from '@stu/faults';
 import type { KindTable, Notifier, Reported, WatchConfig } from '@stu/model';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 import { makeTimedKind } from './make-timed-kind.ts';
+import type { SleepMs } from './make-timed-kind.ts';
 
 export interface WatchOnce {
   readonly configPath: string;
@@ -10,6 +11,7 @@ export interface WatchOnce {
   readonly at: Temporal.Instant;
   readonly createNotifier: (session: string) => Notifier;
   readonly readNowMs: () => number;
+  readonly sleepMs: SleepMs;
   readonly readConfig: (configPath: string) => Promise<WatchConfig>;
   readonly readReported: (statePath: string) => Promise<Reported>;
   readonly writeReported: (statePath: string, next: Reported) => Promise<void>;
@@ -32,7 +34,7 @@ export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
     kinds: Object.fromEntries(
       Object.entries(watch.kinds).map(([name, kind]) => [
         name,
-        makeTimedKind(kind, CHECK_TIMEOUT_MS),
+        makeTimedKind(kind, CHECK_TIMEOUT_MS, watch.sleepMs),
       ]),
     ),
     state,
