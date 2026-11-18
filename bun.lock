@@ -27,6 +27,28 @@
         "typescript": "catalog:",
       },
     },
+    "adapters/alerts-axiom": {
+      "name": "@stu/alerts-axiom",
+      "dependencies": {
+        "@stu/model": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@stu/faults": "workspace:*",
+        "@zgeoff/testing": "catalog:",
+      },
+    },
+    "adapters/alerts-prometheus": {
+      "name": "@stu/alerts-prometheus",
+      "dependencies": {
+        "@stu/model": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@stu/faults": "workspace:*",
+        "@zgeoff/testing": "catalog:",
+      },
+    },
     "adapters/host-linux": {
       "name": "@stu/host-linux",
       "dependencies": {
@@ -59,6 +81,17 @@
         "zod": "catalog:",
       },
     },
+    "adapters/quota-anthropic": {
+      "name": "@stu/quota-anthropic",
+      "dependencies": {
+        "@stu/model": "workspace:*",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@stu/faults": "workspace:*",
+        "@zgeoff/testing": "catalog:",
+      },
+    },
     "adapters/sessions-atc": {
       "name": "@stu/sessions-atc",
       "dependencies": {
@@ -81,11 +114,14 @@
       "name": "@stu/watch",
       "version": "0.1.0",
       "dependencies": {
+        "@stu/alerts-axiom": "workspace:*",
+        "@stu/alerts-prometheus": "workspace:*",
         "@stu/faults": "workspace:*",
         "@stu/host-linux": "workspace:*",
         "@stu/model": "workspace:*",
         "@stu/notifier-atc": "workspace:*",
         "@stu/probe-net": "workspace:*",
+        "@stu/quota-anthropic": "workspace:*",
         "@stu/sessions-atc": "workspace:*",
         "@stu/state-file": "workspace:*",
       },
@@ -419,6 +455,10 @@
 
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
+    "@stu/alerts-axiom": ["@stu/alerts-axiom@workspace:adapters/alerts-axiom"],
+
+    "@stu/alerts-prometheus": ["@stu/alerts-prometheus@workspace:adapters/alerts-prometheus"],
+
     "@stu/faults": ["@stu/faults@workspace:modules/faults"],
 
     "@stu/host-linux": ["@stu/host-linux@workspace:adapters/host-linux"],
@@ -428,6 +468,8 @@
     "@stu/notifier-atc": ["@stu/notifier-atc@workspace:adapters/notifier-atc"],
 
     "@stu/probe-net": ["@stu/probe-net@workspace:adapters/probe-net"],
+
+    "@stu/quota-anthropic": ["@stu/quota-anthropic@workspace:adapters/quota-anthropic"],
 
     "@stu/sessions-atc": ["@stu/sessions-atc@workspace:adapters/sessions-atc"],
 
