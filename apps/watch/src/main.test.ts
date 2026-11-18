@@ -68,7 +68,7 @@ async function setupTest() {
   };
 }
 
-test('it sends stu one message as stu-watch for a tcp check at a closed port, and nothing on the next run', async () => {
+test('it sends stu one message as stu-watch for a tcp check at a closed port', async () => {
   const ctx = await setupTest();
   const atc = await ctx.startAtc(ctx.runtimeFolder);
   const listener = await startStubTCP();
@@ -79,16 +79,13 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port, an
     checks: [{ id: 'closed', kind: 'tcp', host: '127.0.0.1', port: listener.port }],
   });
 
-  const first = await ctx.runMain([configPath]);
-  const second = await ctx.runMain([configPath]);
+  const run = await ctx.runMain([configPath]);
 
-  expect(first).toStrictEqual({
+  expect(run).toStrictEqual({
     exitCode: 0,
     stdout: 'stu-watch: sent 1, failed 0\n',
     stderr: '',
   });
-
-  expect(second).toStrictEqual({ exitCode: 0, stdout: '', stderr: '' });
 
   expect(atc.hellos).toStrictEqual([
     { client: 'stu-watch/0.1.0', protocol: 14, auth: { scheme: 'none' } },
@@ -103,6 +100,25 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port, an
       idempotencyKey: expect.stringMatching(/^stu-watch:[0-9a-f]{32}$/u),
     },
   ]);
+});
+
+test('it sends nothing on the next run while the closed port stays closed', async () => {
+  const ctx = await setupTest();
+  const atc = await ctx.startAtc(ctx.runtimeFolder);
+  const listener = await startStubTCP();
+
+  await listener.stop();
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [{ id: 'closed', kind: 'tcp', host: '127.0.0.1', port: listener.port }],
+  });
+
+  await ctx.runMain([configPath]);
+
+  const next = await ctx.runMain([configPath]);
+
+  expect(next).toStrictEqual({ exitCode: 0, stdout: '', stderr: '' });
+  expect(atc.stored).toHaveLength(1);
 });
 
 test('it reaches a daemon that listens under its state folder through the daemon record', async () => {
