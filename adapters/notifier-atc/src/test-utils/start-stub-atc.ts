@@ -11,6 +11,12 @@ import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
 
+export interface StubAtcSession {
+  // the session as /session/list answers it
+  readonly descriptor: Readonly<Record<string, unknown>> & { readonly id: string };
+  readonly lastActivityAt: number;
+}
+
 // How the stub daemon treats each idempotency key, by the order it first sees the key: 0 is the
 // first key sent.
 export interface StubAtcRules {
@@ -34,6 +40,9 @@ export interface StubAtcRules {
 
   // the body every send that atc takes is answered with; null: the message id and its status
   readonly sendAnswer: Readonly<Record<string, unknown>> | null;
+
+  // the sessions /session/list answers with, in order, and /session/get answers for by id
+  readonly sessions: readonly StubAtcSession[];
 }
 
 export interface StoredMessage {
@@ -142,6 +151,29 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
       : { kind: 'answer', body: { id: found.id, session: found.session, text: found.text } };
   };
 
+  const replyToSessionList = (): StubAtcReply => ({
+    kind: 'answer',
+    body: { sessions: rules.sessions.map((session) => session.descriptor) },
+  });
+
+  const replyToSessionGet = (input: Readonly<Record<string, unknown>>): StubAtcReply => {
+    const found = rules.sessions.find((session) => session.descriptor.id === input['session']);
+
+    return found === undefined
+      ? { kind: 'refuse', code: 'bad_args', data: {}, thenClose: false }
+      : {
+          kind: 'answer',
+          body: {
+            session: found.descriptor,
+            prompt: null,
+            lastActivityAt: found.lastActivityAt,
+            pending: null,
+            result: null,
+            sessionRecord: null,
+          },
+        };
+  };
+
   const replyToHello = (input: Readonly<Record<string, unknown>>): StubAtcReply => {
     hellos.push(input);
 
@@ -160,6 +192,8 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
   > = {
     '/session/message': replyToMessage,
     '/message/get': replyToMessageRead,
+    '/session/list': replyToSessionList,
+    '/session/get': replyToSessionGet,
   };
 
   // a hello is recorded on its own, and every other request in the order it came

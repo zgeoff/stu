@@ -4,7 +4,8 @@
   "description": "The dead and stuck session kinds, read through a read-only atc port",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
   },
   "scripts": {
     "typecheck": "tsrs --noEmit"

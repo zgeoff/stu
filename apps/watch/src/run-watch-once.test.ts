@@ -27,6 +27,7 @@ async function setupTest() {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   onTestFinished(() => atc.stop());

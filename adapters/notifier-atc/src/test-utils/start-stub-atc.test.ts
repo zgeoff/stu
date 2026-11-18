@@ -40,6 +40,7 @@ test('it records the hello that comes before each call', async () => {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
@@ -58,6 +59,7 @@ test('it refuses a hello on another protocol with the daemon version, which the 
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
@@ -79,6 +81,7 @@ test('it answers a resend of a key it holds with the first send message', async 
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await stub.client.write((procedures) =>
@@ -113,6 +116,7 @@ test('it stores a message once when its key is sent twice', async () => {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await stub.client.write((procedures) =>
@@ -149,6 +153,7 @@ test('it answers idempotency_conflict for a held key sent to another session', a
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await stub.client.write((procedures) =>
@@ -183,6 +188,7 @@ test('it answers bad_args for a message it does not hold', async () => {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const miss = await stub.client.read((procedures) => procedures.message.get({ message: 'm-9' }));
@@ -201,6 +207,7 @@ test('it closes the connection without an answer to a send whose reply it drops'
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const answer = await stub.client.write((procedures) =>
@@ -229,6 +236,7 @@ test('it stores a message whose reply it drops', async () => {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await stub.client.write((procedures) =>
@@ -256,6 +264,7 @@ test('it refuses a key with the code its rules give', async () => {
     refusedKeys: { 0: 'unknown_session' },
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const refusal = await stub.client.write((procedures) =>
@@ -281,6 +290,7 @@ test('it stores nothing for a key it refuses', async () => {
     refusedKeys: { 0: 'unknown_session' },
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await stub.client.write((procedures) =>
@@ -306,6 +316,7 @@ test('it answers every message read with the refusal its rules give', async () =
     refusedKeys: {},
     messageReadRefusal: 'internal_error',
     sendAnswer: null,
+    sessions: [],
   });
 
   const refusal = await stub.client.read((procedures) =>
@@ -326,6 +337,7 @@ test('it answers each send it takes with the body its rules give', async () => {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: { accepted: true },
+    sessions: [],
   });
 
   const answer = await stub.client.write((procedures) =>
@@ -338,4 +350,76 @@ test('it answers each send it takes with the body its rules give', async () => {
   );
 
   expect(answer).toStrictEqual({ kind: 'answered', body: { accepted: true } });
+});
+
+test('it answers /session/list with the descriptor of each session its rules hold', async () => {
+  const ctx = await setupTest();
+
+  const stub = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
+    sendAnswer: null,
+    sessions: [{ descriptor: { id: 's1-k9q1r', name: 'build-lane' }, lastActivityAt: 5 }],
+  });
+
+  const answer = await stub.client.read((procedures) => procedures.session.list({}));
+
+  expect(answer).toStrictEqual({
+    kind: 'answered',
+    body: { sessions: [{ id: 's1-k9q1r', name: 'build-lane' }] },
+  });
+});
+
+test('it answers /session/get with the session and its last activity', async () => {
+  const ctx = await setupTest();
+
+  const stub = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
+    sendAnswer: null,
+    sessions: [{ descriptor: { id: 's1-k9q1r', name: 'build-lane' }, lastActivityAt: 5 }],
+  });
+
+  const answer = await stub.client.read((procedures) =>
+    procedures.session.get({ session: 's1-k9q1r' }),
+  );
+
+  expect(answer).toStrictEqual({
+    kind: 'answered',
+    body: {
+      session: { id: 's1-k9q1r', name: 'build-lane' },
+      prompt: null,
+      lastActivityAt: 5,
+      pending: null,
+      result: null,
+      sessionRecord: null,
+    },
+  });
+});
+
+test('it answers bad_args for a session it does not hold', async () => {
+  const ctx = await setupTest();
+
+  const stub = await ctx.startAtc({
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
+    sendAnswer: null,
+    sessions: [],
+  });
+
+  const answer = await stub.client.read((procedures) => procedures.session.get({ session: 's9' }));
+
+  expect(answer).toStrictEqual({ kind: 'refused', code: 'bad_args', data: {} });
 });

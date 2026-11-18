@@ -38,6 +38,7 @@ test('it says hello with its client name and protocol 14 before the call', async
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await ctx.createClient([atc.socketPath]).write((procedures) =>
@@ -63,6 +64,7 @@ test('it retries once with the daemon protocol that a protocol_mismatch refusal 
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await ctx.createClient([atc.socketPath]).write((procedures) =>
@@ -89,6 +91,7 @@ test('it answers refused with the atc code and data of a refusal', async () => {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const answer = await ctx
@@ -109,6 +112,7 @@ test('it answers unreached when atc closes the connection before it answers', as
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const answer = await ctx.createClient([atc.socketPath]).write((procedures) =>
@@ -215,6 +219,7 @@ test('it calls the daemon at the next path when none listens at the first', asyn
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await ctx
@@ -248,6 +253,7 @@ test('it calls the daemon at the next path when the first holds a socket file no
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   await ctx.createClient([stale, atc.socketPath]).write((procedures) =>
@@ -275,6 +281,7 @@ test('it answers unreached without trying the next path when the connect fails f
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const overlong = join(ctx.folder, 'x'.repeat(200), 'atc-daemon.sock');

@@ -65,6 +65,7 @@ test('it sends as a local program: a hello name outside atc/, and a message with
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const outcome = await ctx
@@ -98,6 +99,7 @@ test('it answers sent when atc takes the send and answers in a body of another s
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: { accepted: true },
+    sessions: [],
   });
 
   const outcome = await ctx
@@ -118,6 +120,7 @@ test('it settles outcome_unknown as sent through /message/get when atc holds the
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const outcome = await ctx
@@ -139,6 +142,7 @@ test('it answers rekey for outcome_unknown when atc holds no message under the e
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const outcome = await ctx
@@ -162,6 +166,7 @@ test('it answers rekey for idempotency_conflict', async () => {
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const message = {
@@ -205,6 +210,7 @@ test('it answers rekey for outcome_unknown without an effectRef', async () => {
     refusedKeys: { 0: 'outcome_unknown' },
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const outcome = await ctx
@@ -225,6 +231,7 @@ test('it answers failed for outcome_unknown when the message read fails for anot
     refusedKeys: {},
     messageReadRefusal: 'internal_error',
     sendAnswer: null,
+    sessions: [],
   });
 
   const outcome = await ctx
@@ -248,6 +255,7 @@ test('it answers failed with the code of any other atc refusal', async () => {
     refusedKeys: { 0: 'unknown_session' },
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const outcome = await ctx
@@ -268,6 +276,7 @@ test('it resends a recovery whose reply was lost under its first key, then sends
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const notifier = ctx.createNotifier(atc.socketPath, 's-stu');
@@ -304,6 +313,7 @@ test('it leaves stu one fault message and one recovery when the open reply was l
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const notifier = ctx.createNotifier(atc.socketPath, 's-stu');
@@ -330,6 +340,7 @@ test('it stores one message when the first key stays outcome_unknown and the rep
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const notifier = ctx.createNotifier(atc.socketPath, 's-stu');
@@ -361,6 +372,7 @@ test('it sends stu one message under a new key when atc.session changed after a 
     refusedKeys: {},
     messageReadRefusal: null,
     sendAnswer: null,
+    sessions: [],
   });
 
   const fault = { key: 'a:22', line: 'no answer from a:22' };
