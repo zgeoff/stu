@@ -2,6 +2,7 @@
   "name": "stu",
   "private": true,
   "description": "What stu needs to run the owner's conversation",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/zgeoff/stu.git"
