@@ -60,6 +60,7 @@
     "prepare": "command -v git > /dev/null 2>&1 && lefthook install --force || true",
     "prose": "chex prose AGENTS.md",
     "test": "rig unit",
+    "test:related": "rig related",
     "typecheck": "tsrs --noEmit && turbo run typecheck",
     "check:commits": "chex commits",
     "check:local-paths": "chex local-paths",
