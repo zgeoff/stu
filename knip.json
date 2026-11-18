@@ -6,9 +6,12 @@
   "workspaces": {
     // the agent hooks run start.ts from .claude/settings.json and .codex/hooks.json, which knip
     // never reads
-    ".": { "entry": ["rig.config.ts", ".claude/hooks/start.ts"] },
+    // the verify / gate workflow runs its step script through the root ci:verify-gate script
+    ".": { "entry": ["rig.config.ts", ".claude/hooks/start.ts", "scripts/verify-gate/*.test.ts"] },
     // the systemd unit runs the watcher's entry point by its path
     "apps/watch": { "entry": ["src/main.ts", "src/**/*.test.ts"] },
+    // wringer runs the launcher by its path, from the local target's launch plan
+    "apps/verify": { "entry": ["src/daemon/run-local-daemon.ts", "src/**/*.test.ts"] },
     "{apps,modules,adapters,libs}/*": {
       "entry": ["src/**/*.test.ts", "e2e/**/*.test.ts", "bench/*.bench.ts"]
     }
