@@ -102,3 +102,9 @@ test('it kills a process the program left holding stdout open once the timeout p
     { timeoutMs: 1000, label: 'the killed child to be reaped' },
   );
 });
+
+test('it rejects with ENOENT when the program does not exist', () => {
+  expect(
+    runProgram(['/tmp/stu-test/no-such-program'], { env: {}, timeoutMs: 1000 }),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
+});
