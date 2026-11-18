@@ -7,6 +7,7 @@ import { ORPCError } from '@orpc/client';
 import { StandardRPCJsonSerializer, StandardRPCSerializer } from '@orpc/client/standard';
 import type { StandardRequest, StandardResponse } from '@orpc/standard-server';
 import { ServerPeer } from '@orpc/standard-server-peer';
+import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
 
@@ -180,8 +181,10 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
 
   const server = createServer((socket) => {
     const peer = new ServerPeer((message) => {
+      invariant(typeof message === 'string', 'the oRPC peer encodes each message as JSON text');
+
       if (!socket.destroyed) {
-        socket.write(`${String(message)}\n`);
+        socket.write(`${message}\n`);
       }
     });
 
@@ -257,7 +260,9 @@ function buildStubResponse(socket: Socket, reply: StubAtcReply): Promise<Standar
       });
 
       if (refusal.thenClose) {
-        setImmediate(() => socket.end());
+        setImmediate(() => {
+          socket.end();
+        });
       }
 
       return Promise.resolve({

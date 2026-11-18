@@ -16,6 +16,7 @@
     "@orpc/standard-server": "catalog:",
     "@orpc/standard-server-peer": "catalog:",
     "@stu/model": "workspace:*",
+    "tiny-invariant": "catalog:",
     "ts-pattern": "catalog:",
     "zod": "catalog:"
   },

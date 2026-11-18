@@ -6,6 +6,7 @@ import { ORPCError, createORPCClient } from '@orpc/client';
 import { StandardRPCLink } from '@orpc/client/standard';
 import { ClientPeer } from '@orpc/standard-server-peer';
 import type { AtcAnswer, AtcInputs, AtcProcedures } from '@stu/model';
+import invariant from 'tiny-invariant';
 import { match } from 'ts-pattern';
 import { z } from 'zod';
 import type { AtcCallPath, AtcSocketClient, AtcSocketOptions } from './types.ts';
@@ -129,7 +130,9 @@ function formatCause(error: unknown): string {
 // fails.
 function createAtcProcedures(socket: Socket): AtcProcedures {
   const peer = new ClientPeer((message) => {
-    socket.write(`${String(message)}\n`);
+    invariant(typeof message === 'string', 'the oRPC peer encodes each message as JSON text');
+
+    socket.write(`${message}\n`);
   });
 
   createInterface({ input: socket })
@@ -201,17 +204,17 @@ async function writeAtcCall<Path extends AtcCallPath>(
     return { kind: 'answered', body };
   } catch (error) {
     return error instanceof ORPCError
-      ? { kind: 'refused', code: error.code, data: toErrorData(error.data) }
+      ? toRefusedAnswer(error)
       : { kind: 'unreached', reason: formatCause(error) };
   }
 }
 
 const ERROR_DATA_SCHEMA = z.record(z.string(), z.unknown());
 
-function toErrorData(data: unknown): Readonly<Record<string, unknown>> {
-  const parsed = ERROR_DATA_SCHEMA.safeParse(data);
+function toRefusedAnswer(error: ORPCError<string, unknown>): AtcAnswer {
+  const data = ERROR_DATA_SCHEMA.safeParse(error.data);
 
-  return parsed.success ? parsed.data : {};
+  return { kind: 'refused', code: error.code, data: data.success ? data.data : {} };
 }
 
 function findDaemonProtocol(answer: AtcAnswer): number | null {
