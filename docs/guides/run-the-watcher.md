@@ -14,8 +14,8 @@ at `~/.bun/bin/bun`, a running atc daemon, and the atc id of stu's session.
 
 2. Set `atc.session` to the atc id of stu's session.
 3. Edit `checks`. Each check gives a kind and its params. The kinds are `memory`, `disk`, `tcp`,
-   `http`, `session-dead` and `session-stuck`, and the schema at the top of each kind's file in
-   `adapters/` lists its params.
+   `http`, `session-dead` and `session-stuck`. `session-dead` takes no params. Each other kind lists
+   its params in the schema at the top of its `make-*-kind.ts` file in `adapters/`.
 
 The watcher reads a relative `statePath` from the config file's folder. git ignores
 `stu-watch.config.json` and `stu-watch.reported.json` wherever they are, because they hold private
