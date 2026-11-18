@@ -21,9 +21,9 @@ export interface WatchOnce {
 // time limit, so a hung probe still lets the run send and exit.
 const CHECK_TIMEOUT_MS = 30_000;
 
-// No send starts later than SEND_WINDOW_MS after the run starts, and a send still running at
-// SENDS_END_MS is cut, so a hung atc leaves the service's 50-second limit room to save what the run
-// found, which it saves after it resends what earlier runs owe.
+// No send starts 35 seconds into the run, and a send still running at 45 seconds is cut, so a hung
+// atc leaves the service's 50-second limit room to save what the run found, which it saves after it
+// resends what earlier runs owe.
 const SEND_WINDOW_MS = 35_000;
 const SENDS_END_MS = 45_000;
 
