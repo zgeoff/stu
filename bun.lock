@@ -31,6 +31,7 @@
       "name": "@stu/host-linux",
       "dependencies": {
         "@stu/model": "workspace:*",
+        "tiny-invariant": "catalog:",
         "zod": "catalog:",
       },
     },

@@ -1,36 +1,41 @@
-import { expect, mock, test } from 'bun:test';
+import { expect, onTestFinished, test } from 'bun:test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createHostLinux } from './create-host-linux.ts';
 import { makeDiskKind } from './make-disk-kind.ts';
 
-function setupTest() {
-  return {
-    makeKind: (df: string) =>
-      makeDiskKind({
-        readMeminfo: mock(() => Promise.reject(new Error('the disk kind reads no memory'))),
-        readMemoryPressure: mock(() => Promise.reject(new Error('the disk kind reads no memory'))),
-        readDiskUsage: mock(() => Promise.resolve(df)),
-      }),
-  };
+async function setupTest() {
+  const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
+
+  onTestFinished(() => rm(folder, { recursive: true, force: true }));
+
+  return { folder, kind: makeDiskKind(createHostLinux({ procRoot: join(folder, 'proc') })) };
 }
 
-test('it sees one fault keyed by the path for each filesystem over the limit', async () => {
-  const ctx = setupTest();
+// df rounds a filesystem's share in use up to a whole percent, so one that holds the test's folder
+// is at least 1% full.
+test('it sees one fault keyed by the path for a filesystem over the limit', async () => {
+  const ctx = await setupTest();
+  const faults = await ctx.kind({ paths: [ctx.folder], maxUsedPct: 0 });
 
-  const kind = ctx.makeKind(
-    [
-      'Filesystem     1024-blocks      Used Available Capacity Mounted on',
-      '/dev/sda1        100000000  95000000   5242880      95% /',
-      '/dev/sdb1        100000000  10000000  90000000      10% /srv',
-    ].join('\n'),
-  );
-
-  const faults = await kind({ paths: ['/', '/srv'], maxUsedPct: 90 });
-
-  expect(faults).toStrictEqual([{ key: '/', line: '/ is 95% full (5.0 GiB free), over 90%' }]);
+  expect(faults).toStrictEqual([
+    {
+      key: ctx.folder,
+      line: expect.stringMatching(/ is \d+% full \(\d+\.\d GiB free\), over 0%$/u),
+    },
+  ]);
 });
 
-test('it throws when df gives fewer lines than the paths asked for', () => {
-  const ctx = setupTest();
-  const kind = ctx.makeKind('Filesystem     1024-blocks      Used Available Capacity Mounted on\n');
+test('it sees no fault for a filesystem within the limit', async () => {
+  const ctx = await setupTest();
+  const faults = await ctx.kind({ paths: [ctx.folder, ctx.folder], maxUsedPct: 100 });
 
-  expect(kind({ paths: ['/'], maxUsedPct: 90 })).rejects.toThrow('no line for /');
+  expect(faults).toStrictEqual([]);
+});
+
+test('it throws for a path that does not exist', async () => {
+  const ctx = await setupTest();
+
+  expect(ctx.kind({ paths: [join(ctx.folder, 'missing')], maxUsedPct: 90 })).rejects.toThrow();
 });

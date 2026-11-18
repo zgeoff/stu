@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@stu/model": "workspace:*",
+    "tiny-invariant": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {}

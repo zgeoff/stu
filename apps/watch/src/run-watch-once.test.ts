@@ -1,10 +1,13 @@
 import { expect, onTestFinished, test } from 'bun:test';
+import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { Fault } from '@stu/model';
+import { createAtcNotifier, createAtcSocketClient } from '@stu/notifier-atc';
+import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { readReported, writeReported } from '@stu/state-file';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
@@ -14,19 +17,45 @@ import { buildSeeder } from './test-utils/build-seeder.ts';
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
 
-  const notifier = buildStubNotifier([{ kind: 'sent' }]);
-
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
+  const atc = await startStubAtc(folder, {
+    protocol: 14,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
+    sendAnswer: null,
+  });
+
+  onTestFinished(() => atc.stop());
+
+  // the real notifier, on the stub daemon unless the test names another socket
+  const createNotifier =
+    (socketPath: string = atc.socketPath) =>
+    (session: string) =>
+      createAtcNotifier({
+        client: createAtcSocketClient({
+          socketPaths: [socketPath],
+          client: 'stu-watch/0.1.0',
+          timeoutMs: 60_000,
+        }),
+        session,
+        from: 'stu-watch',
+      });
+
   return {
-    notifier,
+    folder,
+    atc,
     seed: buildSeeder({ folder, stateFolder: join(folder, 'atc-state') }),
+    createNotifier,
     runAt: (configPath: string, at: string, faults: readonly Fault[]) =>
       runWatchOnce({
         configPath,
         kinds: { tcp: makeStubKind([faults]) },
         at: Temporal.Instant.from(at),
-        createNotifier: () => notifier,
+        createNotifier: createNotifier(),
         readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
         sleepMs: () => new Promise(() => {}),
         readConfig: readWatchConfig,
@@ -38,7 +67,7 @@ async function setupTest() {
         Partial<Pick<WatchOnce, 'createNotifier'>>,
     ) =>
       runWatchOnce({
-        createNotifier: () => notifier,
+        createNotifier: createNotifier(),
         ...watch,
         readConfig: readWatchConfig,
         readReported,
@@ -59,7 +88,7 @@ test('it sends nothing new after a restart while the fault stays failing', async
     { key: 'a:22', line: 'no answer from a:22' },
   ]);
 
-  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
     'FAULT tunnel:a:22: no answer from a:22',
   ]);
 });
@@ -74,7 +103,7 @@ test('it sends one recovery after a restart when the fault cleared while the wat
 
   await ctx.runAt(configPath, '2026-11-17T09:30:00Z', []);
 
-  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
     'FAULT tunnel:a:22: no answer from a:22',
     'RECOVERED tunnel:a:22 (failing since 2026-11-17T08:00:00.000Z): no answer from a:22',
   ]);
@@ -100,7 +129,7 @@ test('it opens a cannot-run fault for a check whose kind runs past 30 seconds', 
 
   expect(asked).toStrictEqual([30_000, 45_000]);
 
-  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
     'FAULT tunnel: cannot run: timed out after 30000 ms',
   ]);
 });
@@ -120,7 +149,7 @@ test('it starts no send 35 seconds after the run starts, and keeps the send owed
   const config = await readWatchConfig(configPath);
   const stored = await readReported(config.statePath);
 
-  expect(ctx.notifier.sent).toStrictEqual([]);
+  expect(ctx.atc.stored).toStrictEqual([]);
 
   expect(result.failures).toStrictEqual([
     { key: 'tunnel:a:22', reason: 'no time left in this run' },
@@ -141,7 +170,7 @@ test('it sends a message that starts just under 35 seconds after the run starts'
     sleepMs: () => new Promise(() => {}),
   });
 
-  expect(ctx.notifier.sent.map((message) => message.text)).toStrictEqual([
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
     'FAULT tunnel:a:22: no answer from a:22',
   ]);
 });
@@ -150,7 +179,17 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
   const ctx = await setupTest();
   const configPath = await ctx.seed.watchConfig({ checks: [{ id: 'tunnel', kind: 'tcp' }] });
 
-  const hungAtc = { send: () => new Promise<never>(() => {}) };
+  const silentSocketPath = join(ctx.folder, 'silent.sock');
+
+  const silentAtc = createServer((socket) => {
+    onTestFinished(() => socket.destroy());
+  });
+
+  silentAtc.listen(silentSocketPath);
+
+  onTestFinished(() => silentAtc.close());
+
+  await once(silentAtc, 'listening');
 
   const runHung = (at: string, faults: readonly Fault[]) =>
     ctx.run({
@@ -161,7 +200,7 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
 
       // only the cut at the end of the sends fires; the check timeout never does
       sleepMs: (durationMs) => (durationMs === 45_000 ? Promise.resolve() : new Promise(() => {})),
-      createNotifier: () => hungAtc,
+      createNotifier: ctx.createNotifier(silentSocketPath),
     });
 
   await runHung('2026-11-17T08:00:00Z', [{ key: 'a:22', line: 'no answer from a:22' }]);

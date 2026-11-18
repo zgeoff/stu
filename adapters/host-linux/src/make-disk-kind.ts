@@ -1,4 +1,5 @@
 import type { HostPort, Kind } from '@stu/model';
+import invariant from 'tiny-invariant';
 import { z } from 'zod';
 import { parseDiskUsage } from './parse-disk-usage.ts';
 
@@ -20,9 +21,8 @@ export function makeDiskKind(host: HostPort): Kind {
     return limits.paths.flatMap((path, index) => {
       const disk = usage[index];
 
-      if (disk === undefined) {
-        throw new Error(`df gave no line for ${path}`);
-      }
+      // df prints one line for each path it is given, or fails
+      invariant(disk !== undefined, `df gave no line for ${path}`);
 
       return disk.usedPct > limits.maxUsedPct
         ? [
