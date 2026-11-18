@@ -6,10 +6,10 @@ import { match } from 'ts-pattern';
 export function buildSecretKinds(kinds: KindTable, secrets: SecretsPort): KindTable {
   const answers = new Map<string, Promise<SecretAnswer>>();
 
-  const readSecret = (ref: string): Promise<SecretAnswer> => {
-    const answer = answers.get(ref) ?? secrets.readSecret(ref);
+  const readSecret = (reference: string): Promise<SecretAnswer> => {
+    const answer = answers.get(reference) ?? secrets.readSecret(reference);
 
-    answers.set(ref, answer);
+    answers.set(reference, answer);
 
     return answer;
   };
@@ -20,16 +20,19 @@ export function buildSecretKinds(kinds: KindTable, secrets: SecretsPort): KindTa
 }
 
 // The thrown message reaches stu, so it names the param's path and never the reference or a value.
-function makeSecretKind(kind: Kind, readSecret: (ref: string) => Promise<SecretAnswer>): Kind {
+function makeSecretKind(
+  kind: Kind,
+  readSecret: (reference: string) => Promise<SecretAnswer>,
+): Kind {
   return async (params) => {
-    const refs = collectSecretRefs(params, []);
+    const references = collectSecretReferences(params, []);
 
     const answers = await Promise.all(
-      refs.map(async (secret) => ({ secret, answer: await readSecret(secret.ref) })),
+      references.map(async (secret) => ({ secret, answer: await readSecret(secret.reference) })),
     );
 
     // in the order of the params, so the first unread reference is the same on every run
-    const values = new Map(answers.map((read) => [read.secret.ref, toSecretValue(read)]));
+    const values = new Map(answers.map((read) => [read.secret.reference, toSecretValue(read)]));
 
     const secretValues = [...values.values()];
 
@@ -45,28 +48,32 @@ function makeSecretKind(kind: Kind, readSecret: (ref: string) => Promise<SecretA
   };
 }
 
-interface SecretRef {
+interface SecretReference {
   // where the reference sits in the params, such as "slots.1.token"
   readonly path: string;
-  readonly ref: string;
+  readonly reference: string;
 }
 
-const SECRET_REF_PREFIX = 'op://';
+const SECRET_REFERENCE_PREFIX = 'op://';
 
-function collectSecretRefs(value: unknown, path: readonly string[]): SecretRef[] {
+function collectSecretReferences(value: unknown, path: readonly string[]): SecretReference[] {
   if (typeof value === 'string') {
-    return value.startsWith(SECRET_REF_PREFIX) ? [{ path: path.join('.'), ref: value }] : [];
+    return value.startsWith(SECRET_REFERENCE_PREFIX)
+      ? [{ path: path.join('.'), reference: value }]
+      : [];
   }
 
   if (typeof value !== 'object' || value === null) {
     return [];
   }
 
-  return Object.entries(value).flatMap(([key, child]) => collectSecretRefs(child, [...path, key]));
+  return Object.entries(value).flatMap(([key, child]) =>
+    collectSecretReferences(child, [...path, key]),
+  );
 }
 
 interface SecretRead {
-  readonly secret: SecretRef;
+  readonly secret: SecretReference;
   readonly answer: SecretAnswer;
 }
 

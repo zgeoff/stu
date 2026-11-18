@@ -13,13 +13,13 @@ export interface SecretsOpOptions {
 // No reason quotes op's output or the reference, which can name the vault: the reason reaches stu.
 export function createSecretsOp(options: SecretsOpOptions): SecretsPort {
   return {
-    readSecret: async (ref) => {
+    readSecret: async (reference) => {
       if (options.serviceAccountToken === undefined) {
         return { kind: 'unread', reason: 'OP_SERVICE_ACCOUNT_TOKEN is unset' };
       }
 
       const result = await options
-        .run(['op', 'read', ref], {
+        .run(['op', 'read', reference], {
           env: { ...options.opEnv, OP_SERVICE_ACCOUNT_TOKEN: options.serviceAccountToken },
           timeoutMs: 30_000,
         })

@@ -6,10 +6,10 @@ export function buildStubSecrets(values: Readonly<Record<string, string>>) {
   const reads: string[] = [];
 
   const secrets: SecretsPort = {
-    readSecret: (ref) => {
-      reads.push(ref);
+    readSecret: (reference) => {
+      reads.push(reference);
 
-      const value = Object.hasOwn(values, ref) ? values[ref] : undefined;
+      const value = Object.hasOwn(values, reference) ? values[reference] : undefined;
 
       const answer: SecretAnswer =
         value === undefined

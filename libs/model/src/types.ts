@@ -123,7 +123,7 @@ export type SecretAnswer =
 
 export interface SecretsPort {
   // the value of a secret reference, such as op://<vault_id>/<item_id>/credential
-  readonly readSecret: (ref: string) => Promise<SecretAnswer>;
+  readonly readSecret: (reference: string) => Promise<SecretAnswer>;
 }
 
 // The global fetch, narrowed to the one form the alert and quota kinds call.

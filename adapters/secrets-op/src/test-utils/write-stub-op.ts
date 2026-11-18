@@ -15,7 +15,10 @@ export async function writeStubOp(folder: string, stub: StubOp): Promise<string>
   const binFolder = join(folder, 'bin');
 
   const cases = Object.entries(stub.values)
-    .map(([ref, value]) => `  ${toShellWord(ref)}) printf '%s\\n' ${toShellWord(value)} ;;`)
+    .map(
+      ([reference, value]) =>
+        `  ${toShellWord(reference)}) printf '%s\\n' ${toShellWord(value)} ;;`,
+    )
     .join('\n');
 
   await mkdir(binFolder, { recursive: true });
