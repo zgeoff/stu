@@ -1,8 +1,8 @@
 import { realpath } from 'node:fs/promises';
 import { SESSION_DESCRIPTOR_SCHEMA } from '@atcx/contract';
+import type { AtcReader } from '@stu/model';
 import { WringerError } from '@wringer/core';
 import { z } from 'zod';
-import { openRunAtc } from '../run/open-run-atc.ts';
 import { parseAtcBody } from '../run/parse-atc-body.ts';
 import type { RunEndpoints } from '../run/run-endpoints-schema.ts';
 import { isInsideFolder } from './is-inside-folder.ts';
@@ -14,7 +14,10 @@ const SESSION_GET_SCHEMA = z.object({
 // The doctor's daemon check: the socket sits in the run's own root, never the caller's daemon, and
 // the inbox session's claude runs, since atc refuses a message to a dead session. It compares real
 // paths, so a link in the root to another daemon's socket fails it.
-export async function checkDaemon(run: RunEndpoints): Promise<{ socket: string; session: string }> {
+export async function checkDaemon(
+  atc: AtcReader,
+  run: RunEndpoints,
+): Promise<{ socket: string; session: string }> {
   const root = await realpath(run.root);
   const socket = await realpath(run.socket);
 
@@ -24,9 +27,7 @@ export async function checkDaemon(run: RunEndpoints): Promise<{ socket: string; 
     });
   }
 
-  const answer = await openRunAtc(run.socket).read((procedures) =>
-    procedures.session.get({ session: run.session }),
-  );
+  const answer = await atc.read((procedures) => procedures.session.get({ session: run.session }));
 
   const harness = parseAtcBody('/session/get', answer, SESSION_GET_SCHEMA).session.lifecycle
     .harness;
