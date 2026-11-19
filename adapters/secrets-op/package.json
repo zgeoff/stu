@@ -1,0 +1,16 @@
+{
+  "name": "@stu/secrets-op",
+  "private": true,
+  "description": "The secrets port that reads each op:// reference with 1Password's op",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@stu/model": "workspace:*"
+  }
+}

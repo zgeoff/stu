@@ -1,6 +1,14 @@
 import { runWatch } from '@stu/faults';
 import type { WatchResult } from '@stu/faults';
-import type { KindTable, Notifier, Reported, WatchConfig } from '@stu/model';
+import type {
+  KindTable,
+  Notifier,
+  NotifierTable,
+  Reported,
+  SecretsPort,
+  WatchConfig,
+} from '@stu/model';
+import { buildSecretKinds } from './build-secret-kinds.ts';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 import { makeTimedKind } from './make-timed-kind.ts';
 import type { SleepMs } from './make-timed-kind.ts';
@@ -9,7 +17,8 @@ export interface WatchOnce {
   readonly configPath: string;
   readonly kinds: KindTable;
   readonly at: Temporal.Instant;
-  readonly createNotifier: (session: string) => Notifier;
+  readonly notifiers: NotifierTable;
+  readonly secrets: SecretsPort;
   readonly readNowMs: () => number;
   readonly sleepMs: SleepMs;
   readonly readConfig: (configPath: string) => Promise<WatchConfig>;
@@ -29,19 +38,25 @@ const SENDS_END_MS = 45_000;
 
 export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
   const config = await watch.readConfig(watch.configPath);
+
+  const notifier = createNotifier(watch.notifiers, config.notify);
+
   const state = await watch.readReported(config.statePath);
+
+  // The timeout wraps the secret reads, so a hung op read opens the check's cannot-run fault too.
+  const kinds = buildSecretKinds(watch.kinds, watch.secrets);
 
   return runWatch({
     checks: config.checks,
     kinds: Object.fromEntries(
-      Object.entries(watch.kinds).map(([name, kind]) => [
+      Object.entries(kinds).map(([name, kind]) => [
         name,
         makeTimedKind(kind, CHECK_TIMEOUT_MS, watch.sleepMs),
       ]),
     ),
     state,
     at: watch.at,
-    notifier: createTimedNotifier(watch.createNotifier(config.atc.session), {
+    notifier: createTimedNotifier(notifier, {
       sendUntilMs: watch.at.epochMilliseconds + SEND_WINDOW_MS,
       sendsEndMs: watch.at.epochMilliseconds + SENDS_END_MS,
       readNowMs: watch.readNowMs,
@@ -49,4 +64,16 @@ export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
     }),
     writeReported: (next) => watch.writeReported(config.statePath, next),
   });
+}
+
+// No check runs without a notifier to tell stu what it found, so an unknown kind fails the run.
+function createNotifier(notifiers: NotifierTable, notify: WatchConfig['notify']): Notifier {
+  const { kind, ...params } = notify;
+  const makeNotifier = Object.hasOwn(notifiers, kind) ? notifiers[kind] : undefined;
+
+  if (makeNotifier === undefined) {
+    throw new Error(`no notifier kind named ${kind}`);
+  }
+
+  return makeNotifier(params);
 }

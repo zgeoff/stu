@@ -6,12 +6,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { Fault } from '@stu/model';
-import { createAtcNotifier, createAtcSocketClient } from '@stu/notifier-atc';
+import { buildStubSecrets } from '@stu/model/test-utils/build-stub-secrets';
+import { createAtcSocketClient } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { readReported, writeReported } from '@stu/state-file';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
 import type { WatchOnce } from './run-watch-once.ts';
+import { buildNotifiers } from './tables/build-notifiers.ts';
 import { buildSeeder } from './test-utils/build-seeder.ts';
 
 async function setupTest() {
@@ -32,31 +34,28 @@ async function setupTest() {
 
   onTestFinished(() => atc.stop());
 
-  // the real notifier, on the stub daemon unless the test names another socket
-  const createNotifier =
-    (socketPath: string = atc.socketPath) =>
-    (session: string) =>
-      createAtcNotifier({
-        client: createAtcSocketClient({
-          socketPaths: [socketPath],
-          client: 'stu-watch/0.1.0',
-          timeoutMs: 60_000,
-        }),
-        session,
-        from: 'stu-watch',
-      });
+  // the real notifiers, on the stub daemon unless the test names another socket
+  const buildAtcNotifiers = (socketPath: string = atc.socketPath) =>
+    buildNotifiers({
+      atc: createAtcSocketClient({
+        socketPaths: [socketPath],
+        client: 'stu-watch/0.1.0',
+        timeoutMs: 60_000,
+      }),
+    });
 
   return {
     folder,
     atc,
     seed: buildSeeder({ folder, stateFolder: join(folder, 'atc-state') }),
-    createNotifier,
+    buildAtcNotifiers,
     runAt: (configPath: string, at: string, faults: readonly Fault[]) =>
       runWatchOnce({
         configPath,
         kinds: { tcp: makeStubKind([faults]) },
         at: Temporal.Instant.from(at),
-        createNotifier: createNotifier(),
+        notifiers: buildAtcNotifiers(),
+        secrets: buildStubSecrets({}).secrets,
         readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
         sleepMs: () => new Promise(() => {}),
         readConfig: readWatchConfig,
@@ -65,10 +64,11 @@ async function setupTest() {
       }),
     run: (
       watch: Pick<WatchOnce, 'configPath' | 'kinds' | 'at' | 'readNowMs' | 'sleepMs'> &
-        Partial<Pick<WatchOnce, 'createNotifier'>>,
+        Partial<Pick<WatchOnce, 'notifiers' | 'secrets'>>,
     ) =>
       runWatchOnce({
-        createNotifier: createNotifier(),
+        notifiers: buildAtcNotifiers(),
+        secrets: buildStubSecrets({}).secrets,
         ...watch,
         readConfig: readWatchConfig,
         readReported,
@@ -201,7 +201,7 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
 
       // only the cut at the end of the sends fires; the check timeout never does
       sleepMs: (durationMs) => (durationMs === 45_000 ? Promise.resolve() : new Promise(() => {})),
-      createNotifier: ctx.createNotifier(silentSocketPath),
+      notifiers: ctx.buildAtcNotifiers(silentSocketPath),
     });
 
   await runHung('2026-11-17T08:00:00Z', [{ key: 'a:22', line: 'no answer from a:22' }]);
@@ -220,4 +220,178 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
   ]);
 
   expect(stored.faults['tunnel:b:22']?.owed).toBe('open');
+});
+
+test('it gives each kind the op:// references in its params read, and reads a shared reference once', async () => {
+  const ctx = await setupTest();
+
+  const quota = makeStubKind([[]]);
+  const prometheus = makeStubKind([[]]);
+
+  const stub = buildStubSecrets({
+    'op://vault-test/item-shared/credential': 'test-secret-shared',
+    'op://vault-test/item-b/credential': 'test-secret-b',
+  });
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      {
+        id: 'claude-quota',
+        kind: 'quota-anthropic',
+        sevenPct: 85,
+        slots: [
+          { id: 'slot-a', token: 'op://vault-test/item-shared/credential' },
+          { id: 'slot-b', token: 'op://vault-test/item-b/credential' },
+        ],
+      },
+      {
+        id: 'prometheus',
+        kind: 'alerts-prometheus',
+        token: 'op://vault-test/item-shared/credential',
+      },
+    ],
+  });
+
+  await ctx.run({
+    configPath,
+    kinds: { 'quota-anthropic': quota, 'alerts-prometheus': prometheus },
+    secrets: stub.secrets,
+    at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
+    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
+    sleepMs: () => new Promise(() => {}),
+  });
+
+  expect([quota.mock.calls, prometheus.mock.calls]).toStrictEqual([
+    [
+      [
+        {
+          sevenPct: 85,
+          slots: [
+            { id: 'slot-a', token: 'test-secret-shared' },
+            { id: 'slot-b', token: 'test-secret-b' },
+          ],
+        },
+      ],
+    ],
+    [[{ token: 'test-secret-shared' }]],
+  ]);
+
+  expect(stub.reads).toIncludeSameMembers([
+    'op://vault-test/item-shared/credential',
+    'op://vault-test/item-b/credential',
+  ]);
+});
+
+test('it sends one cannot-run fault for the check whose reference cannot be read, and runs the others', async () => {
+  const ctx = await setupTest();
+
+  const stub = buildStubSecrets({
+    'op://vault-test/item-a/credential': 'test-secret-a',
+  });
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      {
+        id: 'claude-quota',
+        kind: 'quota-anthropic',
+        sevenPct: 85,
+        slots: [
+          { id: 'slot-a', token: 'op://vault-test/item-a/credential' },
+          { id: 'slot-b', token: 'op://vault-test/item-missing/credential' },
+        ],
+      },
+      { id: 'prometheus', kind: 'alerts-prometheus', token: 'op://vault-test/item-a/credential' },
+    ],
+  });
+
+  await ctx.run({
+    configPath,
+    kinds: {
+      'quota-anthropic': makeStubKind([[]]),
+      'alerts-prometheus': makeStubKind([
+        [{ key: 'alertname="DiskFull"', line: 'DiskFull firing' }],
+      ]),
+    },
+    secrets: stub.secrets,
+    at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
+    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
+    sleepMs: () => new Promise(() => {}),
+  });
+
+  expect(ctx.atc.stored.map((message) => message.text)).toIncludeSameMembers([
+    'FAULT claude-quota: cannot run: the secret at slots.1.token: the stub holds no such secret',
+    'FAULT prometheus:alertname="DiskFull": DiskFull firing',
+  ]);
+});
+
+test('it rejects a config whose notify kind names no notifier', async () => {
+  const ctx = await setupTest();
+  const configPath = await ctx.seed.watchConfig({ notify: { kind: 'pager', session: 's-stu' } });
+
+  const run = ctx.run({
+    configPath,
+    kinds: { tcp: makeStubKind([[{ key: 'a:22', line: 'no answer from a:22' }]]) },
+    at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
+    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
+    sleepMs: () => new Promise(() => {}),
+  });
+
+  expect(run).rejects.toThrowWithMessage(Error, 'no notifier kind named pager');
+});
+
+test('it reads no reference of a check that is not due', async () => {
+  const ctx = await setupTest();
+
+  const stub = buildStubSecrets({ 'op://vault-test/item-a/credential': 'test-secret-a' });
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      {
+        id: 'prometheus',
+        kind: 'alerts-prometheus',
+        everyMin: 30,
+        token: 'op://vault-test/item-a/credential',
+      },
+    ],
+  });
+
+  const runAt = (at: string) =>
+    ctx.run({
+      configPath,
+      kinds: { 'alerts-prometheus': makeStubKind([[], []]) },
+      secrets: stub.secrets,
+      at: Temporal.Instant.from(at),
+      readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
+      sleepMs: () => new Promise(() => {}),
+    });
+
+  await runAt('2026-11-17T08:00:00Z');
+  await runAt('2026-11-17T08:01:00Z');
+
+  expect(stub.reads).toStrictEqual(['op://vault-test/item-a/credential']);
+});
+
+test('it opens a cannot-run fault for a check whose secret read runs past 30 seconds', async () => {
+  const ctx = await setupTest();
+
+  const prometheus = makeStubKind([[]]);
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      { id: 'prometheus', kind: 'alerts-prometheus', token: 'op://vault-test/item-a/credential' },
+    ],
+  });
+
+  await ctx.run({
+    configPath,
+    kinds: { 'alerts-prometheus': prometheus },
+    secrets: { readSecret: () => new Promise(() => {}) },
+    at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
+    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
+    sleepMs: (durationMs) => (durationMs === 30_000 ? Promise.resolve() : new Promise(() => {})),
+  });
+
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
+    'FAULT prometheus: cannot run: timed out after 30000 ms',
+  ]);
 });

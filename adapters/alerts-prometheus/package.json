@@ -4,7 +4,8 @@
   "description": "The alerts-prometheus kind, which reads the firing Prometheus alerts through Grafana",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-utils/*": "./src/test-utils/*.ts"
   },
   "scripts": {
     "typecheck": "tsrs --noEmit"

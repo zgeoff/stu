@@ -13,8 +13,8 @@ import { startStubHTTP } from '@stu/probe-net/test-utils/start-stub-http';
 import { startStubTCP } from '@stu/probe-net/test-utils/start-stub-tcp';
 import { createSessionsAtc } from '@stu/sessions-atc';
 import { buildMockSessionDescriptor } from '@stu/sessions-atc/test-utils/build-mock-session-descriptor';
+import { readWatchConfig } from '../read-watch-config.ts';
 import { buildKinds } from './build-kinds.ts';
-import { readWatchConfig } from './read-watch-config.ts';
 
 async function setupTest() {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
@@ -57,9 +57,7 @@ async function setupTest() {
         net: createProbeNet(),
         sessions: createSessionsAtc(client),
         readNowMs: () => 1_794_900_000_000,
-        run: () => Promise.resolve({ code: 0, stdout: 'test-slot-token\n' }),
         fetch,
-        opEnv: { PATH: '/usr/bin', HOME: '/tmp/stu-test' },
       });
     },
   };
@@ -82,7 +80,7 @@ test('it runs every check of the example config without a throw', async () => {
   );
 
   const config = await readWatchConfig(
-    join(import.meta.dir, '..', 'stu-watch.config.example.json'),
+    join(import.meta.dir, '..', '..', 'stu-watch.config.example.json'),
   );
 
   const tcp = await startStubTCP();

@@ -361,7 +361,7 @@ test('it stores one message when the first key stays outcome_unknown and the rep
   expect(keys).toStrictEqual([first, `${String(first)}:2`, `${String(first)}:2`]);
 });
 
-test('it sends stu one message under a new key when atc.session changed after a lost reply', async () => {
+test('it sends stu one message under a new key when the notify session changed after a lost reply', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({

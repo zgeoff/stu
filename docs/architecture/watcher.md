@@ -28,18 +28,42 @@ A check with `everyMin` runs when that many minutes have passed since its last r
 seconds of slack, so a timer that fires a little early still runs it. A run that throws still counts
 as a run, so a slow kind keeps its interval while it fails.
 
-The kinds get read-only ports, and no kind's package depends on the notifier, so no kind can send
-stu a message. The session kinds read atc through a port that offers only reads. The quota kind runs
-`op` through a port that returns the exit code and stdout and drops stderr. The alert and quota
-kinds call HTTP through a `fetch` port that the app passes in, so a test answers their requests
-without a server.
+Each kind gets only the read-only ports it uses, and no kind's package depends on the notifier, so
+no kind can send stu a message. No kind gets a process runner or 1Password's environment. The
+session kinds read atc through a port that offers only reads. The alert and quota kinds call HTTP
+through a `fetch` port that the app passes in, so a test answers their requests without a server.
+
+## Secrets in check params
+
+The watcher reads every `op://` reference in a check's params from 1Password before the check's kind
+runs, so a kind gets plain values and never sees a reference. A reference is any string param that
+starts with `op://`, at any depth, such as each slot's `token` in `quota-anthropic`. The config
+holds no raw token. The watcher reads only the references of the checks that are due.
+
+- The checks of one run share each answer, so a reference that several checks use costs one
+  1Password read a run.
+- A reference that 1Password can't read stops only its own check. The check opens its cannot-run
+  fault with the param's path and the cause, such as
+  `the secret at slots.1.token: op read failed (exit 1)`, and never the reference or a value. The
+  other checks run.
+- The check's timeout covers its reads, so a hung read opens the check's cannot-run fault too.
+- The watcher writes `[secret]` in place of each read value in the faults and the thrown message of
+  the check, so a kind that quotes a param, such as a slot id, sends no secret to stu, the reported
+  file or the program's output.
+
+The `@stu/secrets-op` adapter reads each reference with `op read`, and drops `op`'s stderr. `op`
+gets only `PATH`, `HOME` and the service account token. The watcher takes that token from its own
+`OP_SERVICE_ACCOUNT_TOKEN` environment variable, which the systemd service loads from an env file,
+so no file in the config's folder holds a token. A run without the token reads no reference, and
+each check that holds one opens its cannot-run fault. Each reference names its vault and item by id,
+because 1Password counts a lookup by name as three requests against the service account's limit.
 
 ## The alert and quota kinds
 
 Three kinds read what other systems already watch. Each one throws when it cannot read its source,
 so the engine opens the check's cannot-run fault and reports none of the source's faults as
-recovered. The engine sends a thrown message to stu, so a kind never puts a token, a URL, an `op://`
-reference or a response body in one.
+recovered. The engine sends a thrown message to stu, so a kind never puts a token, a URL or a
+response body in one.
 
 | Kind                | Reads                                                                 | Fault key                                                                         |
 | ------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -66,13 +90,13 @@ of any other monitor, because its newest notification can stay `open` after its 
 monitor type the kind doesn't know makes it throw. A monitor open for longer than the kind's history
 window with no new notification reads as resolved.
 
-`quota-anthropic` reads every slot at once, each slot's token with `op read` and then its use,
-because one `op read` can take several seconds and the check has a time limit. A slot is over its
-limit when its `7d` use is at or above `sevenPct`, and each slot over its line gives one fault. The
-kind reads no `5h` use, because the subscription has no `5h` window. The request asks for
+`quota-anthropic` reads every slot's use at once, because the check has a time limit. A slot is over
+its limit when its `7d` use is at or above `sevenPct`, and each slot over its line gives one fault.
+The kind reads no `5h` use, because the subscription has no `5h` window. The request asks for
 `claude-haiku-4-5`, because the subscription route answers `claude-haiku-5-5` with a 429 that has no
 use headers. An answer, a 429 included, counts as a reading when it carries the `7d` use header.
-When any slot cannot be read, the whole check throws, so a 1Password outage opens one fault.
+When any slot cannot be read, the whole check throws, so the check opens one fault and never a
+recovery for a slot it could not read.
 
 ## What a fault owes stu
 
@@ -114,7 +138,7 @@ atc refuses to run a key again in two cases:
   atc for the message whose id the error holds. When atc holds it, the send counts as taken. When
   atc answers that it holds no such message, or the error holds no id, the watcher needs a new key.
 - atc answers `idempotency_conflict` when a resend differs from the first send, such as after the
-  owner changes the session in the config. The watcher needs a new key.
+  owner changes the session in the config's `notify` block. The watcher needs a new key.
 
 For a send that needs a new key, the engine adds a counter to the old key and saves the file before
 it sends again. A lost reply to that send then replays on the next run, and stu still gets one
@@ -124,6 +148,10 @@ atc keeps a used key for a fixed retention, which its hello answer gives. A rese
 retention, such as after the PC slept, reaches stu twice.
 
 ## How the notifier reaches atc
+
+The config's `notify` block picks the notifier by its `kind`, from the notifier table in the watch
+app, as each check picks its kind. `atc` is the one notifier kind, and its `session` param is the
+atc id of stu's session. A run whose `notify` kind is not in the table fails before any check runs.
 
 The notifier calls atc on the atc daemon's client socket, `atc-daemon.sock`. atc also opens
 `atc.sock` in the same folder. Session hooks report on `atc.sock`, and it answers no client call.
