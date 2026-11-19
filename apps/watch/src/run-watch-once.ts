@@ -1,9 +1,8 @@
 import { runWatch } from '@stu/faults';
 import type { WatchResult } from '@stu/faults';
-import type { KindTable, Notifier, Reported, WatchConfig } from '@stu/model';
+import type { KindTable, Notifier, Reported, SleepMs, WatchConfig } from '@stu/model';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 import { makeTimedKind } from './make-timed-kind.ts';
-import type { SleepMs } from './make-timed-kind.ts';
 
 export interface WatchOnce {
   readonly configPath: string;

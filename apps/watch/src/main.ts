@@ -25,6 +25,12 @@ const atc = createAtcSocketClient({
   timeoutMs: 10_000,
 });
 
+// node's sleep, not Bun.sleep: it takes an AbortSignal, so a kind that answers in time leaves no
+// timer running.
+function sleepMs(durationMs: number, signal: AbortSignal): Promise<void> {
+  return sleep(durationMs, undefined, { signal });
+}
+
 const result = await runWatchOnce({
   configPath,
   at: Temporal.Now.instant(),
@@ -35,14 +41,12 @@ const result = await runWatchOnce({
     readNowMs: () => Date.now(),
     run: runProgram,
     fetch,
+    sleepMs,
     opEnv: { PATH: process.env['PATH'] ?? '', HOME: process.env['HOME'] ?? '' },
   }),
   createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),
   readNowMs: () => Date.now(),
-
-  // node's sleep, not Bun.sleep: it takes an AbortSignal, so a kind that answers in time leaves no
-  // timer running.
-  sleepMs: (durationMs, signal) => sleep(durationMs, undefined, { signal }),
+  sleepMs,
   readConfig: readWatchConfig,
   readReported,
   writeReported,

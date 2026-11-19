@@ -1,4 +1,4 @@
-import type { Fault, FetchHTTP, Kind } from '@stu/model';
+import type { Fault, FetchHTTP, Kind, SleepMs } from '@stu/model';
 import { z } from 'zod';
 import { canMonitorResolve } from './can-monitor-resolve.ts';
 import { findFiringSince } from './find-firing-since.ts';
@@ -6,6 +6,7 @@ import { findFiringSince } from './find-firing-since.ts';
 export interface AxiomAlertsPorts {
   readonly fetch: FetchHTTP;
   readonly readNowMs: () => number;
+  readonly sleepMs: SleepMs;
 }
 
 const AXIOM_PARAMS = z.strictObject({
@@ -33,38 +34,70 @@ interface AxiomSource {
   // the API's URL without a trailing slash
   readonly base: string;
   readonly token: string;
+  readonly sleepMs: SleepMs;
+
+  // aborts at the kind's deadline
+  readonly deadline: AbortSignal;
 }
+
+// The watcher fails a check at 30 s with a message that names nothing it read. The kind and each
+// request give up first, so a hung request fails with a message that names it.
+const KIND_DEADLINE_MS = 25_000;
 
 export function makeAxiomAlertsKind(ports: AxiomAlertsPorts): Kind {
   return async (params) => {
     const axiom = AXIOM_PARAMS.parse(params);
     const now = Temporal.Instant.fromEpochMilliseconds(ports.readNowMs());
 
+    const run = new AbortController();
+
     const source: AxiomSource = {
       fetch: ports.fetch,
       base: axiom.apiURL.replace(/\/$/u, ''),
       token: axiom.token,
+      sleepMs: ports.sleepMs,
+      deadline: createTimeoutSignal(ports.sleepMs, KIND_DEADLINE_MS, run.signal),
     };
 
-    const monitors = await readAxiomAnswer(source, {
-      url: new URL(`${source.base}/v2/monitors`),
-      what: 'monitors',
-      schema: MONITORS_ANSWER,
-    });
+    try {
+      const monitors = await readAxiomAnswer(source, {
+        url: new URL(`${source.base}/v2/monitors`),
+        what: 'monitors',
+        schema: MONITORS_ANSWER,
+      });
 
-    const faults: Fault[] = [];
-
-    // one after another, so a run sends Axiom one request at a time
-    for (const monitor of monitors.filter((candidate) => canMonitorResolve(candidate))) {
-      const fault = await readMonitorFault(source, monitor, now);
-
-      if (fault !== null) {
-        faults.push(fault);
-      }
+      return await readMonitorFaults(
+        source,
+        monitors.filter((candidate) => canMonitorResolve(candidate)),
+        now,
+      );
+    } finally {
+      run.abort();
     }
-
-    return faults;
   };
+}
+
+function createTimeoutSignal(sleepMs: SleepMs, timeoutMs: number, stop: AbortSignal): AbortSignal {
+  const timeout = new AbortController();
+
+  void abortAfterSleep(timeout, sleepMs, timeoutMs, stop);
+
+  return timeout.signal;
+}
+
+async function abortAfterSleep(
+  timeout: AbortController,
+  sleepMs: SleepMs,
+  timeoutMs: number,
+  stop: AbortSignal,
+): Promise<void> {
+  try {
+    await sleepMs(timeoutMs, stop);
+  } catch {
+    return;
+  }
+
+  timeout.abort(new DOMException(`no answer in ${timeoutMs} ms`, 'TimeoutError'));
 }
 
 interface AxiomRequest<Answer> {
@@ -75,39 +108,95 @@ interface AxiomRequest<Answer> {
   readonly schema: z.ZodType<Answer>;
 }
 
+const REQUEST_LIMIT_MS = 10_000;
+
 // No thrown message quotes the URL, the token or the body: the engine sends it to stu.
 async function readAxiomAnswer<Answer>(
   source: AxiomSource,
   request: AxiomRequest<Answer>,
 ): Promise<Answer> {
-  const response = await source
-    .fetch(request.url, {
-      headers: { authorization: `Bearer ${source.token}`, accept: 'application/json' },
-      signal: AbortSignal.timeout(15_000),
-    })
-    .catch((error: unknown) => {
-      throw new Error(`axiom gave no answer for ${request.what} (${toErrorName(error)})`);
+  const requestEnd = new AbortController();
+
+  const signal = AbortSignal.any([
+    source.deadline,
+    createTimeoutSignal(source.sleepMs, REQUEST_LIMIT_MS, requestEnd.signal),
+  ]);
+
+  try {
+    const response = await source
+      .fetch(request.url, {
+        headers: { authorization: `Bearer ${source.token}`, accept: 'application/json' },
+        signal,
+      })
+      .catch((error: unknown) => {
+        throw buildNoAnswerError(request.what, error);
+      });
+
+    if (!response.ok) {
+      await response.body?.cancel();
+
+      throw new Error(`axiom answered ${response.status} for ${request.what}`);
+    }
+
+    const body: unknown = await response.json().catch((error: unknown) => {
+      if (signal.aborted) {
+        throw buildNoAnswerError(request.what, error);
+      }
+
+      return null;
     });
 
-  if (!response.ok) {
-    await response.body?.cancel();
+    const answer = request.schema.safeParse(body);
 
-    throw new Error(`axiom answered ${response.status} for ${request.what}`);
+    if (!answer.success) {
+      throw new Error(`axiom gave an answer the kind cannot read for ${request.what}`);
+    }
+
+    return answer.data;
+  } finally {
+    requestEnd.abort();
   }
+}
 
-  const body: unknown = await response.json().catch(() => null);
-
-  const answer = request.schema.safeParse(body);
-
-  if (!answer.success) {
-    throw new Error(`axiom gave an answer the kind cannot read for ${request.what}`);
-  }
-
-  return answer.data;
+function buildNoAnswerError(what: string, error: unknown): Error {
+  return new Error(`axiom gave no answer for ${what} (${toErrorName(error)})`);
 }
 
 function toErrorName(error: unknown): string {
   return error instanceof Error ? error.name : 'unknown error';
+}
+
+// Axiom's API limits requests per minute, so the kind sends a small burst, not one request per
+// monitor at once.
+const HISTORY_READS_AT_ONCE = 4;
+
+async function readMonitorFaults(
+  source: AxiomSource,
+  monitors: readonly z.output<typeof MONITOR>[],
+  now: Temporal.Instant,
+): Promise<Fault[]> {
+  const found: (Fault | null)[] = [];
+  const queue = monitors.entries();
+  let hasFailed = false;
+
+  const readQueue = async () => {
+    for (const [index, monitor] of queue) {
+      if (hasFailed) {
+        return;
+      }
+
+      try {
+        found[index] = await readMonitorFault(source, monitor, now);
+      } catch (error) {
+        hasFailed = true;
+        throw error;
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: HISTORY_READS_AT_ONCE }, readQueue));
+
+  return found.filter((fault) => fault !== null);
 }
 
 const NOTIFICATION = z.looseObject({

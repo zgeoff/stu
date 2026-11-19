@@ -1,6 +1,4 @@
-import type { Fault, Kind } from '@stu/model';
-
-export type SleepMs = (durationMs: number, signal: AbortSignal) => Promise<void>;
+import type { Fault, Kind, SleepMs } from '@stu/model';
 
 // The kind's own work keeps running past the timeout; the program exits at the end of the run,
 // which stops it.

@@ -10,10 +10,14 @@ export interface StubRequest {
   readonly body: string;
 }
 
+// 'hang' never answers, and rejects with the reason of the request's signal once it aborts, as fetch
+// does.
+type StubAnswer = Response | Error | 'hang';
+
 // A fetch that answers each path, whatever the host, with its answers in turn. An Error answer
 // rejects, as fetch does when no answer comes, and so does a path with no answers left or none at
 // all. It records every request it gets.
-export function buildStubFetch(routes: Readonly<Record<string, readonly (Response | Error)[]>>) {
+export function buildStubFetch(routes: Readonly<Record<string, readonly StubAnswer[]>>) {
   const queues = new Map(
     Object.entries(routes).map(([path, answers]) => [path, makeAnswerQueue(answers)]),
   );
@@ -28,13 +32,17 @@ export function buildStubFetch(routes: Readonly<Record<string, readonly (Respons
       body: typeof init.body === 'string' ? init.body : '',
     });
 
-    return Promise.try(() => takeAnswer(queues, url));
+    return Promise.try(() => takeAnswer(queues, url, init.signal));
   };
 
   return { fetch: answerRequest, requests };
 }
 
-function takeAnswer(queues: ReadonlyMap<string, () => Response | Error>, url: URL): Response {
+function takeAnswer(
+  queues: ReadonlyMap<string, () => StubAnswer>,
+  url: URL,
+  signal: AbortSignal | null | undefined,
+): Response | Promise<Response> {
   const next = queues.get(url.pathname);
 
   if (next === undefined) {
@@ -47,5 +55,19 @@ function takeAnswer(queues: ReadonlyMap<string, () => Response | Error>, url: UR
     throw answer;
   }
 
+  if (answer === 'hang') {
+    return hangUntilAborted(signal);
+  }
+
   return answer;
+}
+
+function hangUntilAborted(signal: AbortSignal | null | undefined): Promise<Response> {
+  const hung = Promise.withResolvers<Response>();
+
+  signal?.addEventListener('abort', () => {
+    hung.reject(signal.reason);
+  });
+
+  return hung.promise;
 }

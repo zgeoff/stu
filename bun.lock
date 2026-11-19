@@ -122,12 +122,16 @@
         "@stu/sessions-atc": "workspace:*",
         "@stu/state-file": "workspace:*",
       },
+      "devDependencies": {
+        "@zgeoff/testing": "catalog:",
+      },
     },
     "libs/model": {
       "name": "@stu/model",
       "dependencies": {
         "@atcx/contract": "catalog:",
         "@orpc/contract": "catalog:",
+        "tiny-invariant": "catalog:",
         "zod": "catalog:",
       },
       "devDependencies": {

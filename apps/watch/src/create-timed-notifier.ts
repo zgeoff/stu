@@ -1,5 +1,4 @@
-import type { Notifier, SendOutcome } from '@stu/model';
-import type { SleepMs } from './make-timed-kind.ts';
+import type { Notifier, SendOutcome, SleepMs } from '@stu/model';
 
 export interface SendWindow {
   // the epoch milliseconds after which no send starts
