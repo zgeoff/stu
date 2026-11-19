@@ -5,9 +5,11 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
-import type { Fault } from '@stu/model';
+import type { Fault, RunProgram } from '@stu/model';
+import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
 import { createAtcNotifier, createAtcSocketClient } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
+import { makeQuotaAnthropicKind } from '@stu/quota-anthropic';
 import { readReported, writeReported } from '@stu/state-file';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
@@ -220,4 +222,63 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
   ]);
 
   expect(stored.faults['tunnel:b:22']?.owed).toBe('open');
+});
+
+test('it names the slot whose op read hangs, inside the 30-second check timeout', async () => {
+  const ctx = await setupTest();
+
+  const configPath = await ctx.seed.watchConfig({
+    checks: [
+      {
+        id: 'claude-quota',
+        kind: 'quota-anthropic',
+        opServiceAccountToken: 'op-test-service-token',
+        sevenPct: 85,
+        slots: [{ id: 'slot-b', tokenRef: 'op://vault-test/item-b/credential' }],
+      },
+    ],
+  });
+
+  const deadlines: { atMs: number; pass: () => void }[] = [];
+  const bothWaiting = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+
+  const waitUntilMs = (atMs: number) => {
+    const reached = Promise.withResolvers<void>();
+
+    deadlines.push({ atMs, pass: reached.resolve });
+    bothWaiting[deadlines.length - 1]?.resolve();
+
+    return reached.promise;
+  };
+
+  // a killed op's exit reaches the watcher just after its timeout
+  const hungRun: RunProgram = async (_argv, options) => {
+    await waitUntilMs(options.timeoutMs + 1);
+
+    return { code: 137, stdout: '' };
+  };
+
+  const run = ctx.run({
+    configPath,
+    kinds: {
+      'quota-anthropic': makeQuotaAnthropicKind({
+        run: hungRun,
+        fetch: buildStubFetch({}).fetch,
+        opEnv: { PATH: '/usr/bin', HOME: '/tmp/stu-test' },
+      }),
+    },
+    at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
+    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
+    sleepMs: (durationMs) => waitUntilMs(durationMs),
+  });
+
+  await Promise.all(bothWaiting.map((waiting) => waiting.promise));
+
+  deadlines.toSorted((first, second) => first.atMs - second.atMs)[0]?.pass();
+
+  await run;
+
+  expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
+    'FAULT claude-quota: cannot run: slot slot-b: op read failed (exit 137)',
+  ]);
 });

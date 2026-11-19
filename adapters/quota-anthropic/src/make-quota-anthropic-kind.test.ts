@@ -50,7 +50,7 @@ test('it reads each slot token with op and posts a 1-token request with it', asy
             HOME: '/tmp/stu-test',
             OP_SERVICE_ACCOUNT_TOKEN: 'op-test-service-token',
           },
-          timeoutMs: 30_000,
+          timeoutMs: 10_000,
         },
       ],
     ],
@@ -139,6 +139,64 @@ test('it starts the op read of every slot before any of them finishes', () => {
   expect(slowRun.mock.calls.map(([argv]) => argv)).toStrictEqual([
     ['op', 'read', 'op://vault-test/item-a/credential'],
     ['op', 'read', 'op://vault-test/item-b/credential'],
+  ]);
+});
+
+test('it reads four slots whose answers each wait until all four requests have arrived', async () => {
+  const ctx = setupTest();
+
+  const slotTokens: Readonly<Record<string, string>> = {
+    'op://vault-test/item-a/credential': 'test-token-a',
+    'op://vault-test/item-b/credential': 'test-token-b',
+    'op://vault-test/item-c/credential': 'test-token-c',
+    'op://vault-test/item-d/credential': 'test-token-d',
+  };
+
+  const sevenDayUse: Readonly<Record<string, string>> = {
+    'Bearer test-token-a': '0.86',
+    'Bearer test-token-b': '0.87',
+    'Bearer test-token-c': '0.88',
+    'Bearer test-token-d': '0.89',
+  };
+
+  const tokenRun = mock<RunProgram>((argv) =>
+    Promise.resolve({ code: 0, stdout: `${slotTokens[argv[2] ?? ''] ?? ''}\n` }),
+  );
+
+  const arrivals = Array.from({ length: 4 }, () => Promise.withResolvers<void>());
+  let arrivedCount = 0;
+
+  const heldFetch: FetchHTTP = async (_url, init) => {
+    arrivals[arrivedCount++]?.resolve();
+
+    await Promise.all(arrivals.map((arrival) => arrival.promise));
+
+    return new Response(null, {
+      headers: {
+        'anthropic-ratelimit-unified-7d-utilization':
+          sevenDayUse[new Headers(init.headers).get('authorization') ?? ''] ?? '',
+      },
+    });
+  };
+
+  const kind = ctx.makeKind(heldFetch, tokenRun);
+
+  const faults = await kind({
+    opServiceAccountToken: 'op-test-service-token',
+    sevenPct: 85,
+    slots: [
+      { id: 'slot-a', tokenRef: 'op://vault-test/item-a/credential' },
+      { id: 'slot-b', tokenRef: 'op://vault-test/item-b/credential' },
+      { id: 'slot-c', tokenRef: 'op://vault-test/item-c/credential' },
+      { id: 'slot-d', tokenRef: 'op://vault-test/item-d/credential' },
+    ],
+  });
+
+  expect(faults).toStrictEqual([
+    { key: 'slot-a', line: 'Claude slot slot-a is over its limit: 7-day 86% (line 85%)' },
+    { key: 'slot-b', line: 'Claude slot slot-b is over its limit: 7-day 87% (line 85%)' },
+    { key: 'slot-c', line: 'Claude slot slot-c is over its limit: 7-day 88% (line 85%)' },
+    { key: 'slot-d', line: 'Claude slot slot-d is over its limit: 7-day 89% (line 85%)' },
   ]);
 });
 

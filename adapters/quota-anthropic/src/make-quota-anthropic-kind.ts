@@ -60,7 +60,10 @@ async function readSlotToken(
 ): Promise<string> {
   const result = await ports.run(['op', 'read', slot.tokenRef], {
     env: { ...ports.opEnv, OP_SERVICE_ACCOUNT_TOKEN: quota.opServiceAccountToken },
-    timeoutMs: 30_000,
+
+    // with the 15 s request, a slot gives up inside the watcher's 30 s check timeout, so a hung op
+    // fails naming its slot
+    timeoutMs: 10_000,
   });
 
   const token = result.stdout.trim();
