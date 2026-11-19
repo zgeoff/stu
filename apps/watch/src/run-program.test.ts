@@ -2,6 +2,7 @@ import { expect, onTestFinished, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { waitFor } from '@zgeoff/testing/helpers';
 import { runProgram } from './run-program.ts';
 
 test('it gives the exit code and stdout, and passes only the env it is given', async () => {
@@ -28,23 +29,91 @@ test('it kills a program that runs past the timeout and gives a non-zero code', 
   expect(result.code).not.toBe(0);
 });
 
-test('it gives a killed program exit 137 and an empty stdout while a child it started still holds stdout open', async () => {
+test('it gives a killed program exit 137 and an empty stdout within a second of the timeout while a child it started holds stdout open', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
 
-  const pidPath = join(folder, 'child.pid');
-
   onTestFinished(async () => {
-    const childPID = await readFile(pidPath, 'utf8');
-
-    process.kill(Number(childPID), 'SIGKILL');
-
     await rm(folder, { recursive: true, force: true });
   });
 
-  const result = await runProgram(['/bin/sh', '-c', `sleep 30 & echo $! > ${pidPath}; wait`], {
-    env: {},
-    timeoutMs: 500,
+  const startedAt = performance.now();
+
+  const result = await runProgram(
+    ['/bin/sh', '-c', `sleep 5 & echo $! > ${join(folder, 'child.pid')}; wait`],
+    { env: {}, timeoutMs: 100 },
+  );
+
+  expect({ result, elapsedMs: performance.now() - startedAt }).toStrictEqual({
+    result: { code: 137, stdout: '' },
+    elapsedMs: expect.toBeWithin(100, 1100),
+  });
+});
+
+test('it kills every process the program started when the program runs past the timeout', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
+
+  onTestFinished(async () => {
+    await rm(folder, { recursive: true, force: true });
   });
 
+  const pidPath = join(folder, 'child.pid');
+
+  await runProgram(['/bin/sh', '-c', `sleep 5 & echo $! > ${pidPath}; wait`], {
+    env: {},
+    timeoutMs: 100,
+  });
+
+  const childPIDText = await readFile(pidPath, 'utf8');
+
+  const childPID = Number(childPIDText);
+
+  await waitFor(
+    () => {
+      expect(() => process.kill(childPID, 0)).toThrow(/ESRCH/u);
+    },
+    { timeoutMs: 1000, label: 'the killed child to be reaped' },
+  );
+});
+
+test('it kills a process the program left holding stdout open once the timeout passes after the program exits', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'stu-test-'));
+
+  onTestFinished(async () => {
+    await rm(folder, { recursive: true, force: true });
+  });
+
+  const pidPath = join(folder, 'child.pid');
+
+  const result = await runProgram(['/bin/sh', '-c', `sleep 5 & echo $! > ${pidPath}`], {
+    env: {},
+    timeoutMs: 100,
+  });
+
+  const childPIDText = await readFile(pidPath, 'utf8');
+
+  const childPID = Number(childPIDText);
+
   expect(result).toStrictEqual({ code: 137, stdout: '' });
+
+  await waitFor(
+    () => {
+      expect(() => process.kill(childPID, 0)).toThrow(/ESRCH/u);
+    },
+    { timeoutMs: 1000, label: 'the killed child to be reaped' },
+  );
+});
+
+test('it rejects with ENOENT when the program does not exist', () => {
+  expect(
+    runProgram(['/tmp/stu-test/no-such-program'], { env: {}, timeoutMs: 1000 }),
+  ).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+test('it gives 128 plus the signal number for a program a signal kills before the timeout', async () => {
+  const result = await runProgram(['/bin/sh', '-c', 'kill -TERM $$'], {
+    env: {},
+    timeoutMs: 5000,
+  });
+
+  expect(result).toStrictEqual({ code: 143, stdout: '' });
 });
