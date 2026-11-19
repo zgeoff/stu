@@ -5,7 +5,7 @@
   "description": "The watcher: one run of every due check, started by a systemd user timer",
   "type": "module",
   "scripts": {
-    "typecheck": "tsrs --noEmit"
+    "typecheck": "tsrs --fast --noEmit"
   },
   "dependencies": {
     "@stu/alerts-axiom": "workspace:*",
