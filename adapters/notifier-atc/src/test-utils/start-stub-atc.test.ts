@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SESSION_DESCRIPTOR_SCHEMA } from '@atcx/contract';
 import { z } from 'zod';
-import { createAtcSocketClient } from '../create-atc-socket-client.ts';
+import { createAtcClient } from '../create-atc-client.ts';
 import { startStubAtc } from './start-stub-atc.ts';
 import type { StubAtcRules } from './start-stub-atc.ts';
 
@@ -21,8 +21,8 @@ async function setupTest() {
 
       return {
         atc,
-        client: createAtcSocketClient({
-          socketPaths: [atc.socketPath],
+        client: createAtcClient({
+          socketPath: atc.socketPath,
           client: 'stu-watch/0.1.0',
           timeoutMs: 1000,
         }),
@@ -35,26 +35,7 @@ test('it records the hello that comes before each call', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
-    unknownLost: [],
-    unknownStored: [],
-    dropFirstReply: [],
-    refusedKeys: {},
-    messageReadRefusal: null,
-    sendAnswer: null,
-    sessions: [],
-  });
-
-  await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
-
-  expect(stub.atc.hellos).toStrictEqual([{ client: 'stu-watch/0.1.0', protocol: 14 }]);
-});
-
-test('it refuses a hello on another protocol with the daemon version, which the retry gives', async () => {
-  const ctx = await setupTest();
-
-  const stub = await ctx.startAtc({
-    protocol: 15,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -67,16 +48,40 @@ test('it refuses a hello on another protocol with the daemon version, which the 
   await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
 
   expect(stub.atc.hellos).toStrictEqual([
-    { client: 'stu-watch/0.1.0', protocol: 14 },
-    { client: 'stu-watch/0.1.0', protocol: 15 },
+    { client: 'stu-watch/0.1.0', protocol: 15, major: 7, auth: { scheme: 'none' } },
   ]);
+});
+
+test('it refuses a hello that names another contract major with protocol_mismatch', async () => {
+  const ctx = await setupTest();
+
+  const stub = await ctx.startAtc({
+    major: 8,
+    unknownLost: [],
+    unknownStored: [],
+    dropFirstReply: [],
+    refusedKeys: {},
+    messageReadRefusal: null,
+    sendAnswer: null,
+    sessions: [],
+  });
+
+  const answer = await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
+
+  expect(answer).toStrictEqual({
+    kind: 'refused',
+    code: 'protocol_mismatch',
+    data: { daemonMajor: 8, clientMajor: 7 },
+  });
+
+  expect(stub.atc.requests).toStrictEqual([]);
 });
 
 test('it answers a resend of a key it holds with the first send message', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -111,7 +116,7 @@ test('it stores a message once when its key is sent twice', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -148,7 +153,7 @@ test('it answers idempotency_conflict for a held key sent to another session', a
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -183,7 +188,7 @@ test('it answers bad_args for a message it does not hold', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -202,7 +207,7 @@ test('it closes the connection without an answer to a send whose reply it drops'
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
@@ -223,7 +228,7 @@ test('it closes the connection without an answer to a send whose reply it drops'
 
   expect(answer).toStrictEqual({
     kind: 'unreached',
-    reason: 'atc closed the connection before it answered',
+    reason: 'the connection closed',
   });
 });
 
@@ -231,7 +236,7 @@ test('it stores a message whose reply it drops', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
@@ -259,11 +264,11 @@ test('it refuses a key with the code its rules give', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
-    refusedKeys: { 0: 'unknown_session' },
+    refusedKeys: { 0: 'no_such_session' },
     messageReadRefusal: null,
     sendAnswer: null,
     sessions: [],
@@ -278,18 +283,18 @@ test('it refuses a key with the code its rules give', async () => {
     }),
   );
 
-  expect(refusal).toStrictEqual({ kind: 'refused', code: 'unknown_session', data: {} });
+  expect(refusal).toStrictEqual({ kind: 'refused', code: 'no_such_session', data: {} });
 });
 
 test('it stores nothing for a key it refuses', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
-    refusedKeys: { 0: 'unknown_session' },
+    refusedKeys: { 0: 'no_such_session' },
     messageReadRefusal: null,
     sendAnswer: null,
     sessions: [],
@@ -311,12 +316,12 @@ test('it answers every message read with the refusal its rules give', async () =
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
     refusedKeys: {},
-    messageReadRefusal: 'internal_error',
+    messageReadRefusal: 'internal',
     sendAnswer: null,
     sessions: [],
   });
@@ -325,14 +330,14 @@ test('it answers every message read with the refusal its rules give', async () =
     procedures.message.get({ message: 'm-1' }),
   );
 
-  expect(refusal).toStrictEqual({ kind: 'refused', code: 'internal_error', data: {} });
+  expect(refusal).toStrictEqual({ kind: 'refused', code: 'internal', data: {} });
 });
 
 test('it answers each send it takes with the body its rules give', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -358,7 +363,7 @@ test('it answers /session/list with the descriptor of each session its rules hol
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -380,7 +385,7 @@ test('it answers /session/list with a recorded descriptor that the atc session s
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -427,7 +432,7 @@ test('it answers /session/get with the session and its last activity', async () 
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -458,7 +463,7 @@ test('it answers bad_args for a session it does not hold', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],

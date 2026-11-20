@@ -7,7 +7,7 @@ test('it builds a default daemon record', () => {
   expect(record).toStrictEqual({
     pid: 4242,
     socketPath: '/tmp/stu-test/run/atc-daemon.sock',
-    protocol: 14,
+    protocol: 15,
   });
 });
 
@@ -17,6 +17,6 @@ test('it applies overrides on top of the defaults', () => {
   expect(record).toStrictEqual({
     pid: 4242,
     socketPath: '/tmp/stu-test/state/atc-daemon.sock',
-    protocol: 14,
+    protocol: 15,
   });
 });

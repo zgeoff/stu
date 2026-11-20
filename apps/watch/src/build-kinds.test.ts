@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { createHostLinux } from '@stu/host-linux';
 import type { FetchHTTP } from '@stu/model';
 import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
-import { createAtcSocketClient } from '@stu/notifier-atc';
+import { createAtcClient } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import type { StubAtcSession } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { createProbeNet } from '@stu/probe-net';
@@ -34,7 +34,7 @@ async function setupTest() {
       fetch: FetchHTTP,
     ) => {
       const atc = await startStubAtc(folder, {
-        protocol: 14,
+        major: 7,
         unknownLost: [],
         unknownStored: [],
         dropFirstReply: [],
@@ -46,8 +46,8 @@ async function setupTest() {
 
       onTestFinished(() => atc.stop());
 
-      const client = createAtcSocketClient({
-        socketPaths: [atc.socketPath],
+      const client = createAtcClient({
+        socketPath: atc.socketPath,
         client: 'stu-watch/0.1.0',
         timeoutMs: 1000,
       });

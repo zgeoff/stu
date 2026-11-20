@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAtcNotifier, createAtcSocketClient } from '@stu/notifier-atc';
+import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 
@@ -14,7 +14,7 @@ async function setupTest() {
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
   const atc = await startStubAtc(folder, {
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -31,8 +31,8 @@ async function setupTest() {
     atc,
     createNotifier: (socketPath: string) =>
       createAtcNotifier({
-        client: createAtcSocketClient({
-          socketPaths: [socketPath],
+        client: createAtcClient({
+          socketPath,
           client: 'stu-watch/0.1.0',
           timeoutMs: 60_000,
         }),

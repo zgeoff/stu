@@ -9,7 +9,7 @@ import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { Fault } from '@stu/model';
 import { buildStubClock } from '@stu/model/test-utils/build-stub-clock';
 import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
-import { createAtcNotifier, createAtcSocketClient } from '@stu/notifier-atc';
+import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { readReported, writeReported } from '@stu/state-file';
 import { waitFor } from '@zgeoff/testing/helpers';
@@ -24,7 +24,7 @@ async function setupTest() {
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
   const atc = await startStubAtc(folder, {
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -41,8 +41,8 @@ async function setupTest() {
     (socketPath: string = atc.socketPath) =>
     (session: string) =>
       createAtcNotifier({
-        client: createAtcSocketClient({
-          socketPaths: [socketPath],
+        client: createAtcClient({
+          socketPath,
           client: 'stu-watch/0.1.0',
           timeoutMs: 60_000,
         }),

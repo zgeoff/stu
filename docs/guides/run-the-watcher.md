@@ -55,7 +55,7 @@ in the same drop-in.
 
    Expect: `ExecMainStatus=0`. A `1` means the run failed: a send that the next run tries again, or
    a config or state file it cannot read. `journalctl --user -u stu-watch.service` shows the reason
-   the run printed, such as `atc send failed: no atc daemon listens at <socket path>`. In that case,
+   the run printed, such as `atc send failed: no atc daemon answers at <socket path>`. In that case,
    start the atc daemon and repeat step 2.
 
 4. Start the timer:

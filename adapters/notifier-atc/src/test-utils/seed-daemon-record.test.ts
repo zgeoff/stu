@@ -24,7 +24,7 @@ test('it writes daemon.json in the state folder', async () => {
   expect(written).toStrictEqual({
     pid: 4242,
     socketPath: '/tmp/stu-test/run/atc-daemon.sock',
-    protocol: 14,
+    protocol: 15,
   });
 });
 

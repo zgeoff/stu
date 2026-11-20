@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { runWatch } from '@stu/faults';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { CheckConfig, KindTable, Notifier, Reported } from '@stu/model';
+import { createAtcClient } from './create-atc-client.ts';
 import { createAtcNotifier } from './create-atc-notifier.ts';
-import { createAtcSocketClient } from './create-atc-socket-client.ts';
 import { startStubAtc } from './test-utils/start-stub-atc.ts';
 import type { StubAtcRules } from './test-utils/start-stub-atc.ts';
 
@@ -29,8 +29,8 @@ async function setupTest() {
     },
     createNotifier: (socketPath: string, session: string) =>
       createAtcNotifier({
-        client: createAtcSocketClient({
-          socketPaths: [socketPath],
+        client: createAtcClient({
+          socketPath,
           client: 'stu-watch/0.1.0',
           timeoutMs: 1000,
         }),
@@ -58,7 +58,7 @@ test('it sends as a local program: a hello name outside atc/, and a message with
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -73,7 +73,10 @@ test('it sends as a local program: a hello name outside atc/, and a message with
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
   expect(outcome).toStrictEqual({ kind: 'sent' });
-  expect(atc.hellos).toStrictEqual([{ client: 'stu-watch/0.1.0', protocol: 14 }]);
+
+  expect(atc.hellos).toStrictEqual([
+    { client: 'stu-watch/0.1.0', protocol: 15, major: 7, auth: { scheme: 'none' } },
+  ]);
 
   expect(atc.requests).toStrictEqual([
     {
@@ -92,7 +95,7 @@ test('it answers sent when atc takes the send and answers in a body of another s
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -113,7 +116,7 @@ test('it settles outcome_unknown as sent through /message/get when atc holds the
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [0],
     dropFirstReply: [],
@@ -135,7 +138,7 @@ test('it answers rekey for outcome_unknown when atc holds no message under the e
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [0],
     unknownStored: [],
     dropFirstReply: [],
@@ -159,7 +162,7 @@ test('it answers rekey for idempotency_conflict', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -195,7 +198,7 @@ test('it answers failed with the cause when atc cannot be reached', async () => 
 
   expect(outcome).toStrictEqual({
     kind: 'failed',
-    reason: `atc send failed: no atc daemon listens at ${socketPath}`,
+    reason: `atc send failed: no atc daemon answers at ${socketPath}`,
   });
 });
 
@@ -203,7 +206,7 @@ test('it answers rekey for outcome_unknown without an effectRef', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -224,12 +227,12 @@ test('it answers failed for outcome_unknown when the message read fails for anot
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [0],
     dropFirstReply: [],
     refusedKeys: {},
-    messageReadRefusal: 'internal_error',
+    messageReadRefusal: 'internal',
     sendAnswer: null,
     sessions: [],
   });
@@ -248,11 +251,11 @@ test('it answers failed with the code of any other atc refusal', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
-    refusedKeys: { 0: 'unknown_session' },
+    refusedKeys: { 0: 'no_such_session' },
     messageReadRefusal: null,
     sendAnswer: null,
     sessions: [],
@@ -262,14 +265,14 @@ test('it answers failed with the code of any other atc refusal', async () => {
     .createNotifier(atc.socketPath, 's-stu')
     .send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
-  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'unknown_session' });
+  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'no_such_session' });
 });
 
 test('it resends a recovery whose reply was lost under its first key, then sends the fault that came back', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [1],
@@ -306,7 +309,7 @@ test('it leaves stu one fault message and one recovery when the open reply was l
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
@@ -333,7 +336,7 @@ test('it stores one message when the first key stays outcome_unknown and the rep
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [0],
     unknownStored: [],
     dropFirstReply: [1],
@@ -365,7 +368,7 @@ test('it sends stu one message under a new key when atc.session changed after a 
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    protocol: 14,
+    major: 7,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
