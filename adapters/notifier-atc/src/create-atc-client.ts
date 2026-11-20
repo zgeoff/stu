@@ -48,10 +48,15 @@ async function connectAndCall(
   }
 }
 
-// The codes that the client raises when no answer came back, which says nothing about whether the
-// daemon ran the call, so the caller resends under the same key. Every other code is the daemon's
+// The codes that say no answer came back, or that the client failed locally, such as on a socket it
+// cannot open: none says whether the daemon ran the call, so the caller resends under the same key. Every other code is the daemon's
 // refusal.
-const UNREACHED_CODES: ReadonlySet<string> = new Set(['no_daemon', 'timeout', 'connection_lost']);
+const UNREACHED_CODES: ReadonlySet<string> = new Set([
+  'no_daemon',
+  'timeout',
+  'connection_lost',
+  'internal',
+]);
 
 function toFailedAnswer(error: unknown): AtcAnswer {
   if (error instanceof AtcError && !UNREACHED_CODES.has(error.code)) {

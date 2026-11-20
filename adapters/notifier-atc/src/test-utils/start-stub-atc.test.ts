@@ -321,7 +321,7 @@ test('it answers every message read with the refusal its rules give', async () =
     unknownStored: [],
     dropFirstReply: [],
     refusedKeys: {},
-    messageReadRefusal: 'internal',
+    messageReadRefusal: 'unauthorized',
     sendAnswer: null,
     sessions: [],
   });
@@ -330,7 +330,7 @@ test('it answers every message read with the refusal its rules give', async () =
     procedures.message.get({ message: 'm-1' }),
   );
 
-  expect(refusal).toStrictEqual({ kind: 'refused', code: 'internal', data: {} });
+  expect(refusal).toStrictEqual({ kind: 'refused', code: 'unauthorized', data: {} });
 });
 
 test('it answers each send it takes with the body its rules give', async () => {

@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Socket } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -120,6 +120,23 @@ test('it answers unreached when the daemon accepts the connection and never answ
 
   const answer = await ctx
     .createClient(socketPath, 100)
+    .read((procedures) => procedures.message.get({ message: 'm-1' }));
+
+  expect(answer.kind).toBe('unreached');
+});
+
+test('it answers unreached when the client fails locally with internal', async () => {
+  const ctx = await setupTest();
+
+  const folder = join(ctx.folder, 'locked');
+
+  await mkdir(folder);
+  await chmod(folder, 0o000);
+
+  onTestFinished(() => chmod(folder, 0o700));
+
+  const answer = await ctx
+    .createClient(join(folder, 'atc-daemon.sock'))
     .read((procedures) => procedures.message.get({ message: 'm-1' }));
 
   expect(answer.kind).toBe('unreached');

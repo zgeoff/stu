@@ -232,7 +232,7 @@ test('it answers failed for outcome_unknown when the message read fails for anot
     unknownStored: [0],
     dropFirstReply: [],
     refusedKeys: {},
-    messageReadRefusal: 'internal',
+    messageReadRefusal: 'unauthorized',
     sendAnswer: null,
     sessions: [],
   });
