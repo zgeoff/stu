@@ -133,11 +133,11 @@ test('it answers unreached when the client fails locally with internal', async (
   await mkdir(folder);
   await chmod(folder, 0o000);
 
-  onTestFinished(() => chmod(folder, 0o700));
-
   const answer = await ctx
     .createClient(join(folder, 'atc-daemon.sock'))
     .read((procedures) => procedures.message.get({ message: 'm-1' }));
+
+  await chmod(folder, 0o700);
 
   expect(answer.kind).toBe('unreached');
 });
