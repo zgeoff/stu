@@ -3,8 +3,7 @@ import { runWatch } from '@stu/faults';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
 import type { FetchHTTP, Reported } from '@stu/model';
 import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
-import { runClockUntilSettled } from '@stu/model/test-utils/run-clock-until-settled';
-import { createFakeClock } from '@zgeoff/testing/clock';
+import { createFakeClock, runClockUntil } from '@zgeoff/testing/clock';
 import { makeAxiomAlertsKind } from './make-axiom-alerts-kind.ts';
 
 function setupTest() {
@@ -255,7 +254,24 @@ test('it throws naming a monitor at its 10-second limit when twenty histories ha
     token: 'xaat-test-token',
   });
 
-  await runClockUntilSettled(ctx.timers, faults);
+  const tracker = { isSettled: false };
+
+  const trackWork = async () => {
+    await Promise.allSettled([faults]);
+
+    tracker.isSettled = true;
+  };
+
+  void trackWork();
+
+  // lets the code start its requests, and so their sleeps, before the clock moves
+  await new Promise((resolve) => {
+    setImmediate(resolve);
+  });
+
+  await runClockUntil(ctx.timers, () => tracker.isSettled, { maxMs: 60_000 });
+
+  await faults.catch(() => {});
 
   expect(faults).rejects.toThrowWithMessage(
     Error,
@@ -287,7 +303,24 @@ test('it throws naming a monitor at its 25-second deadline when each history ans
     token: 'xaat-test-token',
   });
 
-  await runClockUntilSettled(ctx.timers, faults);
+  const tracker = { isSettled: false };
+
+  const trackWork = async () => {
+    await Promise.allSettled([faults]);
+
+    tracker.isSettled = true;
+  };
+
+  void trackWork();
+
+  // lets the code start its requests, and so their sleeps, before the clock moves
+  await new Promise((resolve) => {
+    setImmediate(resolve);
+  });
+
+  await runClockUntil(ctx.timers, () => tracker.isSettled, { maxMs: 60_000 });
+
+  await faults.catch(() => {});
 
   expect(faults).rejects.toThrowWithMessage(
     Error,
@@ -302,6 +335,7 @@ test('it starts no history read after one fails', async () => {
   const ids = Array.from({ length: 6 }, (_, index) => `mon_${String(index + 1).padStart(2, '0')}`);
   const failed = Promise.withResolvers<void>();
   const asked: string[] = [];
+  const inFlight = { count: 0 };
 
   const heldFetch: FetchHTTP = async (url) => {
     if (url.pathname === '/v2/monitors') {
@@ -314,7 +348,11 @@ test('it starts no history read after one fails', async () => {
       return new Response(null, { status: 502 });
     }
 
+    inFlight.count += 1;
+
     await failed.promise;
+
+    inFlight.count -= 1;
 
     return Response.json([]);
   };
@@ -328,7 +366,13 @@ test('it starts no history read after one fails', async () => {
     failed.resolve();
   });
 
-  await runClockUntilSettled(ctx.timers, Promise.resolve());
+  // the released workers finish, and start any further reads, before the assertion
+  await runClockUntil(ctx.timers, () => inFlight.count === 0, { maxMs: 60_000 });
+
+  // a released worker starts its next read a tick after its last one ends
+  await new Promise((resolve) => {
+    setImmediate(resolve);
+  });
 
   expect(asked).toStrictEqual([
     '/v2/monitors/mon_01/history',
@@ -361,7 +405,19 @@ test('it throws that Axiom gave no answer when the monitor list body stalls past
     },
   );
 
-  await runClockUntilSettled(ctx.timers, faults);
+  const tracker = { isSettled: false };
+
+  const trackWork = async () => {
+    await Promise.allSettled([faults]);
+
+    tracker.isSettled = true;
+  };
+
+  void trackWork();
+
+  await runClockUntil(ctx.timers, () => tracker.isSettled, { maxMs: 60_000 });
+
+  await faults.catch(() => {});
 
   expect(faults).rejects.toThrowWithMessage(
     Error,

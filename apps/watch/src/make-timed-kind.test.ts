@@ -1,14 +1,24 @@
 import { expect, test } from 'bun:test';
-import { runClockUntilSettled } from '@stu/model/test-utils/run-clock-until-settled';
-import { createFakeClock } from '@zgeoff/testing/clock';
+import { createFakeClock, runClockUntil } from '@zgeoff/testing/clock';
 import { makeTimedKind } from './make-timed-kind.ts';
 
 test('it throws once the kind runs past the timeout', async () => {
   const clock = createFakeClock();
   const kind = makeTimedKind(() => new Promise(() => {}), 20, clock);
   const faults = kind({});
+  const tracker = { isSettled: false };
 
-  await runClockUntilSettled(clock, faults);
+  const trackWork = async () => {
+    await Promise.allSettled([faults]);
+
+    tracker.isSettled = true;
+  };
+
+  void trackWork();
+
+  await runClockUntil(clock, () => tracker.isSettled, { maxMs: 60_000 });
+
+  await faults.catch(() => {});
 
   expect(faults).rejects.toThrow('timed out after 20 ms');
   expect(clock.now()).toBe(20);

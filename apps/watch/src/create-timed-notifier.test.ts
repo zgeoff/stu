@@ -4,10 +4,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runClockUntilSettled } from '@stu/model/test-utils/run-clock-until-settled';
 import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
-import { createFakeClock } from '@zgeoff/testing/clock';
+import { createFakeClock, runClockUntil } from '@zgeoff/testing/clock';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 
 async function setupTest() {
@@ -96,7 +95,19 @@ test('it answers failed for a send still running when the sends end', async () =
     clock,
   }).send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
-  await runClockUntilSettled(clock, outcome);
+  const tracker = { isSettled: false };
+
+  const trackWork = async () => {
+    await Promise.allSettled([outcome]);
+
+    tracker.isSettled = true;
+  };
+
+  void trackWork();
+
+  await runClockUntil(clock, () => tracker.isSettled, { maxMs: 60_000 });
+
+  await outcome.catch(() => {});
 
   expect(outcome).resolves.toStrictEqual({
     kind: 'failed',
