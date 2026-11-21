@@ -86,13 +86,8 @@ test('it runs every check of the example config without a throw', async () => {
     join(import.meta.dir, '..', 'stu-watch.config.example.json'),
   );
 
-  const tcp = await startStubTCP();
-
-  onTestFinished(() => tcp.stop());
-
-  const http = await startStubHTTP(200);
-
-  onTestFinished(() => http.stop());
+  const tcp = startStubTCP();
+  const http = startStubHTTP(200);
 
   const usageHeaders = {
     'anthropic-ratelimit-unified-7d-utilization': '0.2',
