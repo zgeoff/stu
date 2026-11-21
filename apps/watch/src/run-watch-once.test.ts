@@ -8,12 +8,11 @@ import { makeAxiomAlertsKind } from '@stu/alerts-axiom';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { Fault } from '@stu/model';
 import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
-import { runClockUntilSettled } from '@stu/model/test-utils/run-clock-until-settled';
 import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { readReported, writeReported } from '@stu/state-file';
 import { waitFor } from '@zgeoff/testing';
-import { createFakeClock } from '@zgeoff/testing/clock';
+import { createFakeClock, runClockUntil } from '@zgeoff/testing/clock';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
 import type { WatchOnce } from './run-watch-once.ts';
@@ -219,7 +218,19 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
     });
 
     // only the cuts at the end of the sends fire: the check answers, so its timeout is cancelled
-    await runClockUntilSettled(clock, run);
+    const tracker = { isSettled: false };
+
+    const trackWork = async () => {
+      await Promise.allSettled([run]);
+
+      tracker.isSettled = true;
+    };
+
+    void trackWork();
+
+    await runClockUntil(clock, () => tracker.isSettled, { maxMs: 3_600_000 });
+
+    await run.catch(() => {});
 
     return run;
   };
