@@ -29,5 +29,5 @@ minimumReleaseAgeExcludes = [
 ]
 
 [test]
-# registers the jest-extended matchers
-preload = ["@zgeoff/bun-test-extended"]
+# registers the jest-extended matchers, and restores the env that updateEnv changed after each test
+preload = ["@zgeoff/bun-test-extended", "@zgeoff/testing/preload"]

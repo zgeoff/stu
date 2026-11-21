@@ -15,5 +15,7 @@
     "ts-pattern": "catalog:",
     "zod": "catalog:"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@zgeoff/testing": "catalog:"
+  }
 }

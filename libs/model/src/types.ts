@@ -112,7 +112,3 @@ export type RunProgram = (
 
 // The global fetch, narrowed to the one form the alert and quota kinds call.
 export type FetchHTTP = (url: URL, init: RequestInit) => Promise<Response>;
-
-// Waits durationMs, and rejects once the signal aborts, so a caller that no longer needs the wait
-// leaves no timer running.
-export type SleepMs = (durationMs: number, signal: AbortSignal) => Promise<void>;

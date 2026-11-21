@@ -1,12 +1,12 @@
-import type { Fault, FetchHTTP, Kind, SleepMs } from '@stu/model';
+import type { Fault, FetchHTTP, Kind } from '@stu/model';
+import type { Clock } from '@zgeoff/std';
 import { z } from 'zod';
 import { canMonitorResolve } from './can-monitor-resolve.ts';
 import { findFiringSince } from './find-firing-since.ts';
 
 export interface AxiomAlertsPorts {
   readonly fetch: FetchHTTP;
-  readonly readNowMs: () => number;
-  readonly sleepMs: SleepMs;
+  readonly clock: Pick<Clock, 'now' | 'sleep'>;
 }
 
 const AXIOM_PARAMS = z.strictObject({
@@ -34,7 +34,7 @@ interface AxiomSource {
   // the API's URL without a trailing slash
   readonly base: string;
   readonly token: string;
-  readonly sleepMs: SleepMs;
+  readonly clock: Pick<Clock, 'sleep'>;
 
   // aborts at the kind's deadline
   readonly deadline: AbortSignal;
@@ -47,7 +47,7 @@ const KIND_DEADLINE_MS = 25_000;
 export function makeAxiomAlertsKind(ports: AxiomAlertsPorts): Kind {
   return async (params) => {
     const axiom = AXIOM_PARAMS.parse(params);
-    const now = Temporal.Instant.fromEpochMilliseconds(ports.readNowMs());
+    const now = Temporal.Instant.fromEpochMilliseconds(ports.clock.now());
 
     const run = new AbortController();
 
@@ -55,8 +55,8 @@ export function makeAxiomAlertsKind(ports: AxiomAlertsPorts): Kind {
       fetch: ports.fetch,
       base: axiom.apiURL.replace(/\/$/u, ''),
       token: axiom.token,
-      sleepMs: ports.sleepMs,
-      deadline: createTimeoutSignal(ports.sleepMs, KIND_DEADLINE_MS, run.signal),
+      clock: ports.clock,
+      deadline: createTimeoutSignal(ports.clock, KIND_DEADLINE_MS, run.signal),
     };
 
     try {
@@ -77,23 +77,27 @@ export function makeAxiomAlertsKind(ports: AxiomAlertsPorts): Kind {
   };
 }
 
-function createTimeoutSignal(sleepMs: SleepMs, timeoutMs: number, stop: AbortSignal): AbortSignal {
+function createTimeoutSignal(
+  clock: Pick<Clock, 'sleep'>,
+  timeoutMs: number,
+  stop: AbortSignal,
+): AbortSignal {
   const timeout = new AbortController();
 
-  void abortAfterSleep(timeout, sleepMs, timeoutMs, stop);
+  void abortAfterSleep(timeout, clock, timeoutMs, stop);
 
   return timeout.signal;
 }
 
 async function abortAfterSleep(
   timeout: AbortController,
-  sleepMs: SleepMs,
+  clock: Pick<Clock, 'sleep'>,
   timeoutMs: number,
   stop: AbortSignal,
 ): Promise<void> {
-  try {
-    await sleepMs(timeoutMs, stop);
-  } catch {
+  await clock.sleep(timeoutMs, stop);
+
+  if (stop.aborted) {
     return;
   }
 
@@ -119,7 +123,7 @@ async function readAxiomAnswer<Answer>(
 
   const signal = AbortSignal.any([
     source.deadline,
-    createTimeoutSignal(source.sleepMs, REQUEST_LIMIT_MS, requestEnd.signal),
+    createTimeoutSignal(source.clock, REQUEST_LIMIT_MS, requestEnd.signal),
   ]);
 
   try {

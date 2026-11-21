@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { createFakeClock } from '@zgeoff/testing/clock';
 import { createSessionsAtc } from './create-sessions-atc.ts';
 import { makeStuckSessionKind } from './make-stuck-session-kind.ts';
 import { buildMockSessionDescriptor } from './test-utils/build-mock-session-descriptor.ts';
@@ -24,7 +25,7 @@ test('it sees one fault keyed by the session id for a running session idle past 
     },
   );
 
-  const kind = makeStuckSessionKind(createSessionsAtc(reader), () => nowMs);
+  const kind = makeStuckSessionKind(createSessionsAtc(reader), createFakeClock({ startMs: nowMs }));
 
   const faults = await kind({ stuckMin: 30 });
 
@@ -36,7 +37,7 @@ test('it sees one fault keyed by the session id for a running session idle past 
 test('it throws on params without stuckMin', () => {
   const kind = makeStuckSessionKind(
     createSessionsAtc(buildStubAtcReader({ sessions: [] }, {})),
-    () => 1_794_900_000_000,
+    createFakeClock({ startMs: 1_794_900_000_000 }),
   );
 
   expect(kind({})).rejects.toThrow();

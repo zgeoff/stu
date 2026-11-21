@@ -4,8 +4,10 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { runClockUntilSettled } from '@stu/model/test-utils/run-clock-until-settled';
 import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
+import { createFakeClock } from '@zgeoff/testing/clock';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 
 async function setupTest() {
@@ -48,8 +50,7 @@ test('it sends a message that starts before the window closes', async () => {
   const outcome = await createTimedNotifier(ctx.createNotifier(ctx.atc.socketPath), {
     sendUntilMs: 1000,
     sendsEndMs: 2000,
-    readNowMs: () => 999,
-    sleepMs: () => new Promise(() => {}),
+    clock: createFakeClock({ startMs: 999 }),
   }).send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
   expect(outcome).toStrictEqual({ kind: 'sent' });
@@ -65,8 +66,7 @@ test('it answers failed and sends nothing once the window has closed', async () 
   const outcome = await createTimedNotifier(ctx.createNotifier(ctx.atc.socketPath), {
     sendUntilMs: 1000,
     sendsEndMs: 2000,
-    readNowMs: () => 1000,
-    sleepMs: () => new Promise(() => {}),
+    clock: createFakeClock({ startMs: 1000 }),
   }).send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
   expect(outcome).toStrictEqual({ kind: 'failed', reason: 'no time left in this run' });
@@ -88,19 +88,35 @@ test('it answers failed for a send still running when the sends end', async () =
 
   await once(silentAtc, 'listening');
 
-  const slept: number[] = [];
+  const clock = createFakeClock({ startMs: 999 });
 
-  const outcome = await createTimedNotifier(ctx.createNotifier(silentSocketPath), {
+  const outcome = createTimedNotifier(ctx.createNotifier(silentSocketPath), {
     sendUntilMs: 1000,
     sendsEndMs: 2000,
-    readNowMs: () => 999,
-    sleepMs: (durationMs) => {
-      slept.push(durationMs);
-
-      return Promise.resolve();
-    },
+    clock,
   }).send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
 
-  expect(outcome).toStrictEqual({ kind: 'failed', reason: 'atc send ran past the end of the run' });
-  expect(slept).toStrictEqual([1001]);
+  await runClockUntilSettled(clock, outcome);
+
+  expect(outcome).resolves.toStrictEqual({
+    kind: 'failed',
+    reason: 'atc send ran past the end of the run',
+  });
+
+  expect(clock.delays).toStrictEqual([1001]);
+});
+
+test('it leaves no sleep running once a send answers in time', async () => {
+  const ctx = await setupTest();
+
+  const clock = createFakeClock({ startMs: 999 });
+
+  const outcome = await createTimedNotifier(ctx.createNotifier(ctx.atc.socketPath), {
+    sendUntilMs: 1000,
+    sendsEndMs: 2000,
+    clock,
+  }).send({ text: 'FAULT tunnel:a:22: no answer from a:22', idempotencyKey: 'stu-watch:0f3a' });
+
+  expect(outcome).toStrictEqual({ kind: 'sent' });
+  expect(clock.countPending()).toBe(0);
 });

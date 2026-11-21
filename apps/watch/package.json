@@ -17,7 +17,8 @@
     "@stu/probe-net": "workspace:*",
     "@stu/quota-anthropic": "workspace:*",
     "@stu/sessions-atc": "workspace:*",
-    "@stu/state-file": "workspace:*"
+    "@stu/state-file": "workspace:*",
+    "@zgeoff/std": "catalog:"
   },
   "devDependencies": {
     "@zgeoff/testing": "catalog:"

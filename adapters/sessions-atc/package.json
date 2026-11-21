@@ -13,10 +13,12 @@
   "dependencies": {
     "@atcx/contract": "catalog:",
     "@stu/model": "workspace:*",
+    "@zgeoff/std": "catalog:",
     "ts-pattern": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@orpc/client": "catalog:"
+    "@orpc/client": "catalog:",
+    "@zgeoff/testing": "catalog:"
   }
 }

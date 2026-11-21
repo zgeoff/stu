@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@stu/model": "workspace:*",
+    "@zgeoff/std": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@stu/faults": "workspace:*"
+    "@stu/faults": "workspace:*",
+    "@zgeoff/testing": "catalog:"
   }
 }

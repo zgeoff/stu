@@ -1,4 +1,5 @@
 import type { Kind, SessionsPort } from '@stu/model';
+import type { Clock } from '@zgeoff/std';
 import { z } from 'zod';
 
 const STUCK_PARAMS = z.object({
@@ -6,13 +7,13 @@ const STUCK_PARAMS = z.object({
   stuckMin: z.number().positive(),
 });
 
-export function makeStuckSessionKind(sessions: SessionsPort, readNowMs: () => number): Kind {
+export function makeStuckSessionKind(sessions: SessionsPort, clock: Pick<Clock, 'now'>): Kind {
   return async (params) => {
     const limits = STUCK_PARAMS.parse(params);
 
     const listed = await sessions.listSessions();
 
-    const nowMs = readNowMs();
+    const nowMs = clock.now();
 
     return listed
       .filter(

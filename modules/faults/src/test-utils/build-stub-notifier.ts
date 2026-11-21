@@ -1,5 +1,5 @@
 import type { OwedMessage, SendOutcome } from '@stu/model';
-import { makeRepeatingAnswerQueue } from '@zgeoff/testing/helpers';
+import { makeRepeatingAnswerQueue } from '@zgeoff/testing/mocks';
 
 // A notifier that records each message and answers with each outcome in turn, then the last again.
 export function buildStubNotifier(outcomes: readonly [SendOutcome, ...SendOutcome[]]) {

@@ -1,6 +1,7 @@
 import { runWatch } from '@stu/faults';
 import type { WatchResult } from '@stu/faults';
-import type { KindTable, Notifier, Reported, SleepMs, WatchConfig } from '@stu/model';
+import type { KindTable, Notifier, Reported, WatchConfig } from '@stu/model';
+import type { Clock } from '@zgeoff/std';
 import { createTimedNotifier } from './create-timed-notifier.ts';
 import { makeTimedKind } from './make-timed-kind.ts';
 
@@ -9,8 +10,7 @@ export interface WatchOnce {
   readonly kinds: KindTable;
   readonly at: Temporal.Instant;
   readonly createNotifier: (session: string) => Notifier;
-  readonly readNowMs: () => number;
-  readonly sleepMs: SleepMs;
+  readonly clock: Pick<Clock, 'now' | 'sleep'>;
   readonly readConfig: (configPath: string) => Promise<WatchConfig>;
   readonly readReported: (statePath: string) => Promise<Reported>;
   readonly writeReported: (statePath: string, next: Reported) => Promise<void>;
@@ -35,7 +35,7 @@ export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
     kinds: Object.fromEntries(
       Object.entries(watch.kinds).map(([name, kind]) => [
         name,
-        makeTimedKind(kind, CHECK_TIMEOUT_MS, watch.sleepMs),
+        makeTimedKind(kind, CHECK_TIMEOUT_MS, watch.clock),
       ]),
     ),
     state,
@@ -43,8 +43,7 @@ export async function runWatchOnce(watch: WatchOnce): Promise<WatchResult> {
     notifier: createTimedNotifier(watch.createNotifier(config.atc.session), {
       sendUntilMs: watch.at.epochMilliseconds + SEND_WINDOW_MS,
       sendsEndMs: watch.at.epochMilliseconds + SENDS_END_MS,
-      readNowMs: watch.readNowMs,
-      sleepMs: watch.sleepMs,
+      clock: watch.clock,
     }),
     writeReported: (next) => watch.writeReported(config.statePath, next),
   });

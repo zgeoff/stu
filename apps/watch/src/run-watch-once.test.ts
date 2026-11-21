@@ -7,12 +7,13 @@ import { join } from 'node:path';
 import { makeAxiomAlertsKind } from '@stu/alerts-axiom';
 import { makeStubKind } from '@stu/faults/test-utils/make-stub-kind';
 import type { Fault } from '@stu/model';
-import { buildStubClock } from '@stu/model/test-utils/build-stub-clock';
 import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
+import { runClockUntilSettled } from '@stu/model/test-utils/run-clock-until-settled';
 import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { readReported, writeReported } from '@stu/state-file';
-import { waitFor } from '@zgeoff/testing/helpers';
+import { waitFor } from '@zgeoff/testing';
+import { createFakeClock } from '@zgeoff/testing/clock';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runWatchOnce } from './run-watch-once.ts';
 import type { WatchOnce } from './run-watch-once.ts';
@@ -61,14 +62,13 @@ async function setupTest() {
         kinds: { tcp: makeStubKind([faults]) },
         at: Temporal.Instant.from(at),
         createNotifier: createNotifier(),
-        readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
-        sleepMs: () => new Promise(() => {}),
+        clock: createFakeClock({ startMs: Temporal.Instant.from(at).epochMilliseconds }),
         readConfig: readWatchConfig,
         readReported,
         writeReported,
       }),
     run: (
-      watch: Pick<WatchOnce, 'configPath' | 'kinds' | 'at' | 'readNowMs' | 'sleepMs'> &
+      watch: Pick<WatchOnce, 'configPath' | 'kinds' | 'at' | 'clock'> &
         Partial<Pick<WatchOnce, 'createNotifier'>>,
     ) =>
       runWatchOnce({
@@ -118,21 +118,27 @@ test('it opens a cannot-run fault for a check whose kind runs past 30 seconds', 
   const ctx = await setupTest();
   const configPath = await ctx.seed.watchConfig({ checks: [{ id: 'tunnel', kind: 'tcp' }] });
 
-  const asked: number[] = [];
+  const startMs = Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds;
+  const clock = createFakeClock({ startMs });
 
-  await ctx.run({
+  const run = ctx.run({
     configPath,
     kinds: { tcp: () => new Promise(() => {}) },
     at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
-    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
-    sleepMs: (durationMs) => {
-      asked.push(durationMs);
-
-      return durationMs === 30_000 ? Promise.resolve() : new Promise(() => {});
-    },
+    clock,
   });
 
-  expect(asked).toStrictEqual([30_000, 45_000]);
+  // the check's timeout is the first sleep, once the run has read its config
+  await waitFor(() => {
+    expect(clock.readNextDueMs()).toBe(startMs + 30_000);
+  });
+
+  clock.advance(30_000);
+
+  await run;
+
+  // the send is cut 45 seconds into the run, which is 15 seconds after the check times out
+  expect(clock.delays).toStrictEqual([30_000, 15_000]);
 
   expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
     'FAULT tunnel: cannot run: timed out after 30000 ms',
@@ -147,8 +153,9 @@ test('it starts no send 35 seconds after the run starts, and keeps the send owed
     configPath,
     kinds: { tcp: makeStubKind([[{ key: 'a:22', line: 'no answer from a:22' }]]) },
     at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
-    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:35Z').epochMilliseconds,
-    sleepMs: () => new Promise(() => {}),
+    clock: createFakeClock({
+      startMs: Temporal.Instant.from('2026-11-17T08:00:35Z').epochMilliseconds,
+    }),
   });
 
   const config = await readWatchConfig(configPath);
@@ -171,8 +178,9 @@ test('it sends a message that starts just under 35 seconds after the run starts'
     configPath,
     kinds: { tcp: makeStubKind([[{ key: 'a:22', line: 'no answer from a:22' }]]) },
     at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
-    readNowMs: () => Temporal.Instant.from('2026-11-17T08:00:34.999Z').epochMilliseconds,
-    sleepMs: () => new Promise(() => {}),
+    clock: createFakeClock({
+      startMs: Temporal.Instant.from('2026-11-17T08:00:34.999Z').epochMilliseconds,
+    }),
   });
 
   expect(ctx.atc.stored.map((message) => message.text)).toStrictEqual([
@@ -196,17 +204,25 @@ test('it cuts a resend that hangs past the end of the run, and saves the fault t
 
   await once(silentAtc, 'listening');
 
-  const runHung = (at: string, faults: readonly Fault[]) =>
-    ctx.run({
+  const runHung = async (at: string, faults: readonly Fault[]) => {
+    const startMs = Temporal.Instant.from(at).epochMilliseconds;
+    const clock = createFakeClock({ startMs });
+
+    const run = ctx.run({
       configPath,
       kinds: { tcp: makeStubKind([faults]) },
       at: Temporal.Instant.from(at),
-      readNowMs: () => Temporal.Instant.from(at).epochMilliseconds,
 
-      // only the cut at the end of the sends fires; the check timeout never does
-      sleepMs: (durationMs) => (durationMs === 45_000 ? Promise.resolve() : new Promise(() => {})),
+      // now stays at the start of the run, so each owed send starts and reaches its own cut
+      clock: { now: () => startMs, sleep: clock.sleep },
       createNotifier: ctx.createNotifier(silentSocketPath),
     });
+
+    // only the cuts at the end of the sends fire: the check answers, so its timeout is cancelled
+    await runClockUntilSettled(clock, run);
+
+    return run;
+  };
 
   await runHung('2026-11-17T08:00:00Z', [{ key: 'a:22', line: 'no answer from a:22' }]);
 
@@ -254,7 +270,10 @@ test.each([
     ],
   });
 
-  const clock = buildStubClock(Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds);
+  const clock = createFakeClock({
+    startMs: Temporal.Instant.from('2026-11-17T08:00:00Z').epochMilliseconds,
+  });
+
   const axiom = buildStubFetch(row.routes);
 
   const run = ctx.run({
@@ -262,20 +281,19 @@ test.each([
     kinds: {
       'alerts-axiom': makeAxiomAlertsKind({
         fetch: axiom.fetch,
-        readNowMs: clock.readNowMs,
-        sleepMs: clock.sleepMs,
+        clock,
       }),
     },
     at: Temporal.Instant.from('2026-11-17T08:00:00Z'),
-    readNowMs: clock.readNowMs,
-    sleepMs: clock.sleepMs,
+    clock,
   });
 
   await waitFor(() => {
     expect(axiom.requests.at(-1)?.target).toStartWith(row.hungPath);
   });
 
-  clock.passNextSleep();
+  // the first sleep to end is the 10-second limit of the hung request
+  clock.advance(10_000);
 
   await run;
 

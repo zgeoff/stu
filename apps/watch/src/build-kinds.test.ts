@@ -13,6 +13,7 @@ import { startStubHTTP } from '@stu/probe-net/test-utils/start-stub-http';
 import { startStubTCP } from '@stu/probe-net/test-utils/start-stub-tcp';
 import { createSessionsAtc } from '@stu/sessions-atc';
 import { buildMockSessionDescriptor } from '@stu/sessions-atc/test-utils/build-mock-session-descriptor';
+import { createFakeClock } from '@zgeoff/testing/clock';
 import { buildKinds } from './build-kinds.ts';
 import { readWatchConfig } from './read-watch-config.ts';
 
@@ -56,10 +57,9 @@ async function setupTest() {
         host: createHostLinux({ procRoot }),
         net: createProbeNet(),
         sessions: createSessionsAtc(client),
-        readNowMs: () => 1_794_900_000_000,
+        clock: createFakeClock({ startMs: 1_794_900_000_000 }),
         run: () => Promise.resolve({ code: 0, stdout: 'test-slot-token\n' }),
         fetch,
-        sleepMs: () => new Promise(() => {}),
         opEnv: { PATH: '/usr/bin', HOME: '/tmp/stu-test' },
       });
     },

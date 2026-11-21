@@ -2,25 +2,26 @@ import { expect, test } from 'bun:test';
 import { runWatch } from '@stu/faults';
 import { buildStubNotifier } from '@stu/faults/test-utils/build-stub-notifier';
 import type { FetchHTTP, Reported } from '@stu/model';
-import { buildStubClock } from '@stu/model/test-utils/build-stub-clock';
 import { buildStubFetch } from '@stu/model/test-utils/build-stub-fetch';
+import { runClockUntilSettled } from '@stu/model/test-utils/run-clock-until-settled';
+import { createFakeClock } from '@zgeoff/testing/clock';
 import { makeAxiomAlertsKind } from './make-axiom-alerts-kind.ts';
 
 function setupTest() {
   const file: { state: Reported } = { state: { faults: {}, lastRun: {} } };
   const clock = { nowMs: 0 };
   const notifier = buildStubNotifier([{ kind: 'sent' }]);
-  const readNowMs = () => clock.nowMs;
 
   // the kind's sleeps, which move their own time from 0
-  const timers = buildStubClock(0);
+  const timers = createFakeClock();
+  const ports = { now: () => clock.nowMs, sleep: timers.sleep };
 
   return {
     clock,
     timers,
     notifier,
     readFaults: (fetch: FetchHTTP, params: Readonly<Record<string, unknown>>) =>
-      makeAxiomAlertsKind({ fetch, readNowMs, sleepMs: timers.sleepMs })(params),
+      makeAxiomAlertsKind({ fetch, clock: ports })(params),
     runAt: async (at: string, fetch: FetchHTTP) => {
       clock.nowMs = Temporal.Instant.from(at).epochMilliseconds;
 
@@ -35,7 +36,7 @@ function setupTest() {
           },
         ],
         kinds: {
-          'alerts-axiom': makeAxiomAlertsKind({ fetch, readNowMs, sleepMs: timers.sleepMs }),
+          'alerts-axiom': makeAxiomAlertsKind({ fetch, clock: ports }),
         },
         state: file.state,
         at: Temporal.Instant.from(at),
@@ -254,14 +255,14 @@ test('it throws naming a monitor at its 10-second limit when twenty histories ha
     token: 'xaat-test-token',
   });
 
-  await ctx.timers.passSleepsUntilSettled(faults);
+  await runClockUntilSettled(ctx.timers, faults);
 
   expect(faults).rejects.toThrowWithMessage(
     Error,
     'axiom gave no answer for history of mon_01 (TimeoutError)',
   );
 
-  expect(ctx.timers.readNowMs()).toBe(10_000);
+  expect(ctx.timers.now()).toBe(10_000);
 });
 
 test('it throws naming a monitor at its 25-second deadline when each history answers in 9 seconds', async () => {
@@ -273,7 +274,10 @@ test('it throws naming a monitor at its 25-second deadline when each history ans
       return Response.json(ids.map((id) => ({ id, name: `Errors ${id}`, type: 'Threshold' })));
     }
 
-    await ctx.timers.sleepMs(9000, init.signal ?? new AbortController().signal);
+    await ctx.timers.sleep(9000, init.signal ?? undefined);
+
+    // a sleep resolves on abort, so the stub ends its request as fetch does
+    init.signal?.throwIfAborted();
 
     return Response.json([]);
   };
@@ -283,14 +287,14 @@ test('it throws naming a monitor at its 25-second deadline when each history ans
     token: 'xaat-test-token',
   });
 
-  await ctx.timers.passSleepsUntilSettled(faults);
+  await runClockUntilSettled(ctx.timers, faults);
 
   expect(faults).rejects.toThrowWithMessage(
     Error,
     'axiom gave no answer for history of mon_09 (TimeoutError)',
   );
 
-  expect(ctx.timers.readNowMs()).toBe(25_000);
+  expect(ctx.timers.now()).toBe(25_000);
 });
 
 test('it starts no history read after one fails', async () => {
@@ -324,7 +328,7 @@ test('it starts no history read after one fails', async () => {
     failed.resolve();
   });
 
-  await ctx.timers.passSleepsUntilSettled(Promise.resolve());
+  await runClockUntilSettled(ctx.timers, Promise.resolve());
 
   expect(asked).toStrictEqual([
     '/v2/monitors/mon_01/history',
@@ -357,10 +361,32 @@ test('it throws that Axiom gave no answer when the monitor list body stalls past
     },
   );
 
-  await ctx.timers.passSleepsUntilSettled(faults);
+  await runClockUntilSettled(ctx.timers, faults);
 
   expect(faults).rejects.toThrowWithMessage(
     Error,
     'axiom gave no answer for monitors (TimeoutError)',
   );
+});
+
+test('it leaves no sleep running and no signal aborted once the monitors answer', async () => {
+  const ctx = setupTest();
+  const signals: (AbortSignal | null | undefined)[] = [];
+
+  const axiom = buildStubFetch({
+    '/v2/monitors': [Response.json([{ id: 'mon_a1', name: 'API errors', type: 'Threshold' }])],
+    '/v2/monitors/mon_a1/history': [Response.json([])],
+  });
+
+  await ctx.readFaults(
+    (url, init) => {
+      signals.push(init.signal);
+
+      return axiom.fetch(url, init);
+    },
+    { apiURL: 'https://api.example.invalid', token: 'xaat-test-token' },
+  );
+
+  expect(signals.map((signal) => signal?.aborted)).toStrictEqual([false, false]);
+  expect(ctx.timers.countPending()).toBe(0);
 });
