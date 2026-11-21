@@ -23,7 +23,9 @@ test('it takes no connection once stopped', async () => {
 
   const socket = createConnection({ host: '127.0.0.1', port: listener.port });
 
-  const [error] = await once(socket, 'error');
+  const failure = await new Promise<Error>((resolve) => {
+    socket.once('error', resolve);
+  });
 
-  expect(error).toHaveProperty('code', 'ECONNREFUSED');
+  expect(failure).toHaveProperty('code', 'ECONNREFUSED');
 });
