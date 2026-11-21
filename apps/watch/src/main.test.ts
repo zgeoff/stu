@@ -72,7 +72,8 @@ async function setupTest() {
 test('it sends stu one message as stu-watch for a tcp check at a closed port', async () => {
   const ctx = await setupTest();
   const atc = await ctx.startAtc(ctx.runtimeFolder);
-  const listener = await startStubTCP();
+
+  const listener = startStubTCP();
 
   await listener.stop();
 
@@ -106,7 +107,8 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port', a
 test('it sends nothing on the next run while the closed port stays closed', async () => {
   const ctx = await setupTest();
   const atc = await ctx.startAtc(ctx.runtimeFolder);
-  const listener = await startStubTCP();
+
+  const listener = startStubTCP();
 
   await listener.stop();
 

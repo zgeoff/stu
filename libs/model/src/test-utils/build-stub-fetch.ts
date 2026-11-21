@@ -1,4 +1,4 @@
-import { makeAnswerQueue } from '@zgeoff/testing/helpers';
+import { makeAnswerQueue } from '@zgeoff/testing/mocks';
 import type { FetchHTTP } from '../types.ts';
 
 export interface StubRequest {

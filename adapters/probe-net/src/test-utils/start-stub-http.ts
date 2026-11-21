@@ -1,27 +1,13 @@
-import { once } from 'node:events';
-import { createServer } from 'node:http';
-import { readListenPort } from './read-listen-port.ts';
+import { startStubServer } from '@zgeoff/testing/server';
 
 // An HTTP server on a free local port that answers each request with the status and a redirect
-// header, or never answers when the status is null.
-export async function startStubHTTP(status: number | null) {
-  const server = createServer((_request, response) => {
-    if (status !== null) {
-      response.writeHead(status, { location: '/elsewhere' }).end();
-    }
-  });
+// header, or never answers when the status is null. The kit releases it after the test.
+export function startStubHTTP(status: number | null) {
+  const server = startStubServer(() =>
+    status === null
+      ? new Promise<Response>(() => {})
+      : Promise.resolve(new Response(null, { status, headers: { location: '/elsewhere' } })),
+  );
 
-  server.listen(0, '127.0.0.1');
-
-  await once(server, 'listening');
-
-  return {
-    port: readListenPort(server),
-    stop: async () => {
-      server.closeAllConnections();
-      server.close();
-
-      await once(server, 'close');
-    },
-  };
+  return { port: Number(new URL(server.url).port), stop: server.stop };
 }

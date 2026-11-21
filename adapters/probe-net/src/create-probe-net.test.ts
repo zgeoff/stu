@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { createProbeNet } from './create-probe-net.ts';
 import { startStubHTTP } from './test-utils/start-stub-http.ts';
 import { startStubTCP } from './test-utils/start-stub-tcp.ts';
@@ -9,10 +9,7 @@ function setupTest() {
 
 test('#probeTCP answers true for a port that takes connections', async () => {
   const ctx = setupTest();
-
-  const listener = await startStubTCP();
-
-  onTestFinished(() => listener.stop());
+  const listener = startStubTCP();
 
   const reached = await ctx.net.probeTCP('127.0.0.1', listener.port, { timeoutMs: 1000 });
 
@@ -21,8 +18,7 @@ test('#probeTCP answers true for a port that takes connections', async () => {
 
 test('#probeTCP answers false for a closed port', async () => {
   const ctx = setupTest();
-
-  const listener = await startStubTCP();
+  const listener = startStubTCP();
 
   await listener.stop();
 
@@ -33,10 +29,7 @@ test('#probeTCP answers false for a closed port', async () => {
 
 test('#readHTTP answers with the status the server gives, without following a redirect', async () => {
   const ctx = setupTest();
-
-  const listener = await startStubHTTP(302);
-
-  onTestFinished(() => listener.stop());
+  const listener = startStubHTTP(302);
 
   const answer = await ctx.net.readHTTP(`http://127.0.0.1:${listener.port}/`, { timeoutMs: 1000 });
 
@@ -45,10 +38,7 @@ test('#readHTTP answers with the status the server gives, without following a re
 
 test('#readHTTP answers unreached for a server that gives no answer within the timeout', async () => {
   const ctx = setupTest();
-
-  const listener = await startStubHTTP(null);
-
-  onTestFinished(() => listener.stop());
+  const listener = startStubHTTP(null);
 
   const answer = await ctx.net.readHTTP(`http://127.0.0.1:${listener.port}/`, { timeoutMs: 100 });
 

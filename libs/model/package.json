@@ -13,7 +13,6 @@
   "dependencies": {
     "@atcx/contract": "catalog:",
     "@orpc/contract": "catalog:",
-    "tiny-invariant": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

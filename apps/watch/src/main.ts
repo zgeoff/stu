@@ -1,10 +1,10 @@
-import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import { createHostLinux } from '@stu/host-linux';
 import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { createProbeNet } from '@stu/probe-net';
 import { createSessionsAtc } from '@stu/sessions-atc';
 import { readReported, writeReported } from '@stu/state-file';
+import { systemClock } from '@zgeoff/std';
 import packageJSON from '../package.json' with { type: 'json' };
 import { buildKinds } from './build-kinds.ts';
 import { readWatchConfig } from './read-watch-config.ts';
@@ -24,12 +24,6 @@ const atc = createAtcClient({
   timeoutMs: 10_000,
 });
 
-// node's sleep, not Bun.sleep: it takes an AbortSignal, so a kind that answers in time leaves no
-// timer running.
-function sleepMs(durationMs: number, signal: AbortSignal): Promise<void> {
-  return sleep(durationMs, undefined, { signal });
-}
-
 const result = await runWatchOnce({
   configPath,
   at: Temporal.Now.instant(),
@@ -37,15 +31,13 @@ const result = await runWatchOnce({
     host: createHostLinux({ procRoot: '/proc' }),
     net: createProbeNet(),
     sessions: createSessionsAtc(atc),
-    readNowMs: () => Date.now(),
+    clock: systemClock,
     run: runProgram,
     fetch,
-    sleepMs,
     opEnv: { PATH: process.env['PATH'] ?? '', HOME: process.env['HOME'] ?? '' },
   }),
   createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),
-  readNowMs: () => Date.now(),
-  sleepMs,
+  clock: systemClock,
   readConfig: readWatchConfig,
   readReported,
   writeReported,

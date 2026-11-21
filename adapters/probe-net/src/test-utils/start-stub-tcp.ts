@@ -1,31 +1,8 @@
-import { once } from 'node:events';
-import { createServer } from 'node:net';
-import type { Socket } from 'node:net';
-import { readListenPort } from './read-listen-port.ts';
+import { startStubServer } from '@zgeoff/testing/server';
 
-// A TCP server on a free local port that takes each connection and closes it.
-export async function startStubTCP() {
-  const sockets = new Set<Socket>();
+// A server on a free local port that takes each connection. The kit releases it after the test.
+export function startStubTCP() {
+  const server = startStubServer(() => new Response(null, { status: 204 }));
 
-  const server = createServer((socket) => {
-    sockets.add(socket);
-    socket.end();
-  });
-
-  server.listen(0, '127.0.0.1');
-
-  await once(server, 'listening');
-
-  return {
-    port: readListenPort(server),
-    stop: async () => {
-      for (const socket of sockets) {
-        socket.destroy();
-      }
-
-      server.close();
-
-      await once(server, 'close');
-    },
-  };
+  return { port: Number(new URL(server.url).port), stop: server.stop };
 }
