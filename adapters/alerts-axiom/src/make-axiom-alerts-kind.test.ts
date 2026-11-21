@@ -335,6 +335,7 @@ test('it starts no history read after one fails', async () => {
   const ids = Array.from({ length: 6 }, (_, index) => `mon_${String(index + 1).padStart(2, '0')}`);
   const failed = Promise.withResolvers<void>();
   const asked: string[] = [];
+  const inFlight = { count: 0 };
 
   const heldFetch: FetchHTTP = async (url) => {
     if (url.pathname === '/v2/monitors') {
@@ -347,7 +348,11 @@ test('it starts no history read after one fails', async () => {
       return new Response(null, { status: 502 });
     }
 
+    inFlight.count += 1;
+
     await failed.promise;
+
+    inFlight.count -= 1;
 
     return Response.json([]);
   };
@@ -359,6 +364,14 @@ test('it starts no history read after one fails', async () => {
 
   await faults.catch(() => {
     failed.resolve();
+  });
+
+  // the released workers finish, and start any further reads, before the assertion
+  await runClockUntil(ctx.timers, () => inFlight.count === 0, { maxMs: 60_000 });
+
+  // a released worker starts its next read a tick after its last one ends
+  await new Promise((resolve) => {
+    setImmediate(resolve);
   });
 
   expect(asked).toStrictEqual([
