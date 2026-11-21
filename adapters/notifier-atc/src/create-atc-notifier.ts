@@ -1,9 +1,9 @@
 import type { AtcAnswer, Notifier, SendOutcome } from '@stu/model';
 import { match } from 'ts-pattern';
-import type { AtcSocketClient } from './types.ts';
+import type { AtcClient } from './types.ts';
 
 export interface AtcNotifierOptions {
-  readonly client: AtcSocketClient;
+  readonly client: AtcClient;
 
   // the atc id of the session that gets each message
   readonly session: string;

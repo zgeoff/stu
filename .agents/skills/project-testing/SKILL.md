@@ -25,9 +25,10 @@ None.
 - Search `src/test-utils/` of each package for `start-stub-`, `build-stub-` and `make-stub-` before
   you write a stand-in, and use the one you find.
 - Start [`start-stub-atc.ts`](../../../adapters/notifier-atc/src/test-utils/start-stub-atc.ts) of
-  `@stu/notifier-atc` for a test that sends to the atc daemon. Then seed `daemon.json` with the
-  stub's `socketPath`, through the `daemonRecord` seeder of the same package. The code under test
-  finds the daemon through that file.
+  `@stu/notifier-atc` for a test that sends to the atc daemon. It answers `@atcx/client`'s hello for
+  the contract major that its rules name. Pass the stub's `socketPath` to `createAtcClient`, or seed
+  `daemon.json` with it through the `daemonRecord` seeder of the same package when the code under
+  test finds the daemon itself.
 - Start [`start-stub-http.ts`](../../../adapters/probe-net/src/test-utils/start-stub-http.ts) or
   [`start-stub-tcp.ts`](../../../adapters/probe-net/src/test-utils/start-stub-tcp.ts) of
   `@stu/probe-net` for a test of an HTTP or TCP probe.

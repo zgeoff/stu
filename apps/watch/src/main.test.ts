@@ -23,7 +23,7 @@ async function setupTest() {
     stateFolder,
     startAtc: async (socketFolder: string) => {
       const atc = await startStubAtc(socketFolder, {
-        protocol: 14,
+        major: 7,
         unknownLost: [],
         unknownStored: [],
         dropFirstReply: [],
@@ -88,7 +88,9 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port', a
     stderr: '',
   });
 
-  expect(atc.hellos).toStrictEqual([{ client: 'stu-watch/0.1.0', protocol: 14 }]);
+  expect(atc.hellos).toStrictEqual([
+    { client: 'stu-watch/0.1.0', protocol: 15, major: 7, auth: { scheme: 'none' } },
+  ]);
 
   expect(atc.stored).toStrictEqual([
     {
@@ -155,7 +157,7 @@ test('it exits 1 and prints the cause when no atc daemon listens', async () => {
   expect(result).toStrictEqual({
     exitCode: 1,
     stdout: 'stu-watch: sent 0, failed 1\n',
-    stderr: `stu-watch: broken stays owed: atc send failed: no atc daemon listens at ${join(ctx.runtimeFolder, 'atc-daemon.sock')}\n`,
+    stderr: `stu-watch: broken stays owed: atc send failed: no atc daemon answers at ${join(ctx.runtimeFolder, 'atc-daemon.sock')}\n`,
   });
 });
 

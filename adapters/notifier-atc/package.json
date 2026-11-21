@@ -1,7 +1,7 @@
 {
   "name": "@stu/notifier-atc",
   "private": true,
-  "description": "The atc socket client, and the notifier that sends stu one atc message per change",
+  "description": "The atc client, and the notifier that sends stu one atc message per change",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -11,16 +11,17 @@
     "typecheck": "tsrs --fast --noEmit"
   },
   "dependencies": {
+    "@atcx/client": "catalog:",
+    "@stu/model": "workspace:*",
+    "ts-pattern": "catalog:"
+  },
+  "devDependencies": {
     "@atcx/contract": "catalog:",
     "@orpc/client": "catalog:",
     "@orpc/standard-server": "catalog:",
     "@orpc/standard-server-peer": "catalog:",
-    "@stu/model": "workspace:*",
+    "@stu/faults": "workspace:*",
     "tiny-invariant": "catalog:",
-    "ts-pattern": "catalog:",
     "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@stu/faults": "workspace:*"
   }
 }

@@ -1,5 +1,4 @@
+export { createAtcClient } from './create-atc-client.ts';
 export { createAtcNotifier } from './create-atc-notifier.ts';
 export type { AtcNotifierOptions } from './create-atc-notifier.ts';
-export { createAtcSocketClient } from './create-atc-socket-client.ts';
-export { readAtcSocketPaths } from './read-atc-socket-paths.ts';
-export type { AtcSocketClient, AtcSocketOptions, AtcSocketPaths } from './types.ts';
+export type { AtcClient, AtcClientOptions } from './types.ts';

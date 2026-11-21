@@ -131,29 +131,36 @@ retention, such as after the PC slept, reaches stu twice.
 
 ## How the notifier reaches atc
 
-The notifier calls atc on the atc daemon's client socket, `atc-daemon.sock`. atc also opens
+The notifier calls atc through `connect()` from `@atcx/client`, the package that atc's own terminal
+client and CLI use. Each call opens one connection, says hello, makes the one call and closes the
+connection. `connect()` finds the daemon's client socket, `atc-daemon.sock`. atc also opens
 `atc.sock` in the same folder. Session hooks report on `atc.sock`, and it answers no client call.
 The daemon puts both sockets in `$XDG_RUNTIME_DIR` as its own environment sets it, or in
 `~/.local/state/atc` when that variable is unset. A systemd user unit can get a different
-`$XDG_RUNTIME_DIR` from the daemon's. So the notifier first tries `atc-daemon.sock` under its own
-`$XDG_RUNTIME_DIR`, then the socket path that the daemon records in
-`~/.local/state/atc/daemon.json`.
+`$XDG_RUNTIME_DIR` from the daemon's. So `connect()` first tries `atc-daemon.sock` under the
+watcher's own `$XDG_RUNTIME_DIR`, then the socket path that the daemon records in
+`~/.local/state/atc/daemon.json`. It never starts a daemon.
 
-On that socket the notifier calls atc's procedures through the contract that `@atcx/contract`
-publishes, sent as oRPC peer messages, one JSON message per line, as atc's own clients send them.
+The notifier sends to the atc id of the session in the config, as `session.message` takes it, and
+looks no session up by name.
+
+The connect, the hello and the call share one timeout. A daemon that answers nothing in time, one
+that is not there and a connection that drops all count as unreached, and the owed message waits for
+the next run. A refusal from the daemon, such as `no_such_session`, counts as a failed send that
+keeps the message owed with the refusal's code.
 
 ## How atc labels the sender
 
 atc labels a message by who sent it. A program outside every atc session, whose hello gives a client
 name that does not start with `atc/`, sends as `local`, and atc labels its message with the `from`
-it gives. The notifier's hello gives the client name `stu-watch/<version>` and sends with
+it gives. The notifier connects with the client name `stu-watch/<version>` and sends with
 `from: "stu-watch"`. A run started from a session's shell reaches stu as that session, because atc
 identifies the caller from the kernel first. The systemd user service runs outside every session.
 
-The notifier speaks atc's protocol version 14. A daemon on another version refuses the hello with
-its own version, and the notifier retries once with that version. A change to the hello or to the
-message request still breaks the send, and the owed message waits in the reported file until a fix.
-Raising the pinned `@atcx/contract` version shows such a change as a type error in the notifier.
+`connect()` sends the contract's major version in its hello, and a daemon on another major version
+refuses the hello with `protocol_mismatch`. The send then fails, and the owed message waits in the
+reported file until the watcher moves to the daemon's version. A change to the message request shows
+as a type error when the pinned `@atcx/client` and `@atcx/contract` versions rise.
 
 ## Limits
 

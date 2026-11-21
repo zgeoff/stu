@@ -1,7 +1,7 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { parseArgs } from 'node:util';
 import { createHostLinux } from '@stu/host-linux';
-import { createAtcNotifier, createAtcSocketClient, readAtcSocketPaths } from '@stu/notifier-atc';
+import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
 import { createProbeNet } from '@stu/probe-net';
 import { createSessionsAtc } from '@stu/sessions-atc';
 import { readReported, writeReported } from '@stu/state-file';
@@ -19,8 +19,7 @@ if (configPath === undefined) {
   process.exit(2);
 }
 
-const atc = createAtcSocketClient({
-  socketPaths: await readAtcSocketPaths(process.env),
+const atc = createAtcClient({
   client: `stu-watch/${packageJSON.version}`,
   timeoutMs: 10_000,
 });

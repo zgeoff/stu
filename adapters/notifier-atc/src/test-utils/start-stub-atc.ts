@@ -20,8 +20,8 @@ export interface StubAtcSession {
 // How the stub daemon treats each idempotency key, by the order it first sees the key: 0 is the
 // first key sent.
 export interface StubAtcRules {
-  // the protocol version the stub speaks; a hello with another gets protocol_mismatch
-  readonly protocol: number;
+  // the contract major version the stub speaks; a hello that names another gets protocol_mismatch
+  readonly major: number;
 
   // answered outcome_unknown on every send, with no message stored
   readonly unknownLost: readonly number[];
@@ -177,12 +177,23 @@ export async function startStubAtc(folder: string, rules: StubAtcRules) {
   const replyToHello = (input: Readonly<Record<string, unknown>>): StubAtcReply => {
     hellos.push(input);
 
-    return input['protocol'] === rules.protocol
-      ? { kind: 'answer', body: { peerSession: null } }
+    return input['major'] === rules.major
+      ? {
+          kind: 'answer',
+          body: {
+            daemon: 'stub-atc',
+            daemonID: 'stub-daemon',
+            limits: { maxLine: 1_048_576, maxChunk: 65_536 },
+            idempotency: { completedRetentionMs: 3_600_000 },
+            lastUsedAgent: 'claude',
+            peerSession: null,
+            features: [],
+          },
+        }
       : {
           kind: 'refuse',
           code: 'protocol_mismatch',
-          data: { daemonProtocol: rules.protocol, clientProtocol: input['protocol'] },
+          data: { daemonMajor: rules.major, clientMajor: input['major'] },
           thenClose: true,
         };
   };

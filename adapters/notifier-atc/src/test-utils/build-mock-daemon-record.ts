@@ -10,7 +10,7 @@ export function buildMockDaemonRecord(overrides: Partial<DaemonRecord> = {}): Da
   return {
     pid: 4242,
     socketPath: '/tmp/stu-test/run/atc-daemon.sock',
-    protocol: 14,
+    protocol: 15,
     ...overrides,
   };
 }

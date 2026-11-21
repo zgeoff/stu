@@ -1,17 +1,18 @@
 import type { AtcAnswer, AtcProcedures, AtcReader } from '@stu/model';
 
-// One connection per call: the client opens it, says hello, makes the call and closes it.
-export interface AtcSocketClient extends AtcReader {
+// One connection per call: the client connects, says hello, makes the call and closes.
+export interface AtcClient extends AtcReader {
   readonly write: (call: (procedures: AtcProcedures) => Promise<unknown>) => Promise<AtcAnswer>;
 }
 
-export interface AtcSocketOptions {
-  // tried in order until one has a daemon listening
-  readonly socketPaths: AtcSocketPaths;
-
-  // the build the hello names; atc labels a client whose name starts with "atc/" as the owner
+export interface AtcClientOptions {
+  // the name the daemon logs and shows
   readonly client: string;
+
+  // a unix socket that skips the search for the daemon's socket; undefined: search, as atc's own
+  // clients do
+  readonly socketPath?: string;
+
+  // the connect, the hello and the call together
   readonly timeoutMs: number;
 }
-
-export type AtcSocketPaths = readonly [string, ...string[]];
