@@ -51,7 +51,7 @@ The workspace has four kinds of package. Each package's folder name is its packa
 
 - `apps/`: the programs that run. An app builds the adapters and passes them in.
 - `modules/`: the domain logic. A module reads no files, starts no processes, makes no network
-  calls, and reads neither the clock nor the environment. It gets time and settings as arguments.
+  calls, and reads neither the clock nor the environment. It gets time, settings and the adapters it calls as arguments, so its tests pass in fakes and touch no outside system.
 - `adapters/`: one package for each outside system.
 - `libs/`: types, schemas and pure helpers that two or more packages use. A lib does no I/O, the
   same as a module.
@@ -86,7 +86,7 @@ exception to a rule.
 
 - `bun run typecheck`, `bun run lint` and `bun run test` are the local checks. Run them before you
   push, and fix every failure. `bun run test` runs `rig unit`, which runs the tests in random order.
-- `bun run check:docs` runs the docs checks.
+- When you change a doc, a README or a skill, run `bun run check:docs`, the docs checks, and fix every failure.
 - `bun run lint:full` adds the type-aware pass and the type check. Never run it locally, because
   it needs more memory than an agent's host has.
 - lefthook runs the light checks before a commit and a push: lint on the files your branch changes,
@@ -129,5 +129,4 @@ Everything pushed here is public, including commit messages and PR descriptions.
   Remove each match. Search your PR description for the same strings before you open the PR. When a
   match is already in a commit on your branch, rewrite that commit before you push.
 
-Reply with the pull request link and its CI state. When unmerged work blocked you, reply with that
-pull request or issue.
+**Reply:** the pull request link and its CI state, or, when unmerged work blocked you, that pull request or issue.

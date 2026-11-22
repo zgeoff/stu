@@ -3,8 +3,9 @@
 The watcher tells stu when something of the owner's breaks, and again when it recovers. stu gets one
 message when a fault opens and one when it clears, and never a message when nothing changed. The
 watcher remembers what stu has heard in one JSON file, the reported file, so a restart repeats no
-message that the watcher knows stu got. Each message reaches stu through atc as a message from a
-local program named `stu-watch`.
+message that the watcher knows stu got. The one exception is a resend after atc has forgotten the
+send's key, as [Sending each change once](#sending-each-change-once) says. Each message reaches stu
+through atc as a message from a local program named `stu-watch`.
 
 [The overview](./overview.md) shows where the watcher runs and what it talks to.
 
