@@ -13,7 +13,8 @@
   "dependencies": {
     "@atcx/client": "catalog:",
     "@stu/model": "workspace:*",
-    "ts-pattern": "catalog:"
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@atcx/contract": "catalog:",
@@ -21,7 +22,6 @@
     "@orpc/standard-server": "catalog:",
     "@orpc/standard-server-peer": "catalog:",
     "@stu/faults": "workspace:*",
-    "tiny-invariant": "catalog:",
-    "zod": "catalog:"
+    "tiny-invariant": "catalog:"
   }
 }

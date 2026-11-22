@@ -65,6 +65,7 @@
         "@atcx/client": "catalog:",
         "@stu/model": "workspace:*",
         "ts-pattern": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@atcx/contract": "catalog:",
@@ -73,7 +74,6 @@
         "@orpc/standard-server-peer": "catalog:",
         "@stu/faults": "workspace:*",
         "tiny-invariant": "catalog:",
-        "zod": "catalog:",
       },
     },
     "adapters/probe-net": {
