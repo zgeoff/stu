@@ -49,9 +49,10 @@ holds no raw token. The watcher reads only the references of the checks that are
 - A check reads all its references at once, because one `op read` takes several seconds and the
   check's timeout covers its reads. Each read has its own limit, well inside the check timeout, so a
   hung read fails with a fault that names its param, and the kind keeps time for its own requests.
-- The watcher writes `[secret]` in place of each read value in the faults and the thrown message of
-  the check, so a kind that quotes a param, such as a slot id, sends no secret to stu, the reported
-  file or the program's output.
+- The watcher writes a mask that names the param's path, such as `[secret at slots.0.id]`, in place
+  of each read value in the faults and in whatever the check throws. A kind that quotes a param,
+  such as a slot id, sends no secret to stu, the reported file or the program's output, and two
+  masked fault keys stay two faults.
 
 The `@stu/secrets-op` adapter reads each reference with `op read`, and drops `op`'s stderr. `op`
 gets only `PATH`, `HOME` and the service account token. The watcher takes that token from its own

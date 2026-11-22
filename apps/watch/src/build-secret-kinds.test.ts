@@ -116,7 +116,32 @@ test('it masks a read value that a kind puts in a fault key or line', async () =
   const faults = await kinds['quota-anthropic']?.({ slots: [{ id: 'op://vault-test/item-a/id' }] });
 
   expect(faults).toStrictEqual([
-    { key: '[secret]', line: 'Claude slot [secret] is over its limit' },
+    { key: '[secret at slots.0.id]', line: 'Claude slot [secret at slots.0.id] is over its limit' },
+  ]);
+});
+
+test('it keeps the faults of two read values apart once it masks them', async () => {
+  const stub = buildStubSecrets({
+    'op://vault-test/item-a/id': 'test-secret-a',
+    'op://vault-test/item-b/id': 'test-secret-b',
+  });
+
+  const quota = makeStubKind([
+    [
+      { key: 'test-secret-a', line: 'slot test-secret-a is over' },
+      { key: 'test-secret-b', line: 'slot test-secret-b is over' },
+    ],
+  ]);
+
+  const kinds = buildSecretKinds({ 'quota-anthropic': quota }, stub.secrets);
+
+  const faults = await kinds['quota-anthropic']?.({
+    slots: [{ id: 'op://vault-test/item-a/id' }, { id: 'op://vault-test/item-b/id' }],
+  });
+
+  expect(faults).toStrictEqual([
+    { key: '[secret at slots.0.id]', line: 'slot [secret at slots.0.id] is over' },
+    { key: '[secret at slots.1.id]', line: 'slot [secret at slots.1.id] is over' },
   ]);
 });
 
@@ -126,5 +151,28 @@ test('it masks a read value in the message a kind throws', () => {
   const kinds = buildSecretKinds({ 'quota-anthropic': quota }, stub.secrets);
   const run = kinds['quota-anthropic']?.({ slots: [{ id: 'op://vault-test/item-a/id' }] });
 
-  expect(run).rejects.toThrowWithMessage(Error, 'slot [secret]: the messages API answered 401');
+  expect(run).rejects.toThrowWithMessage(
+    Error,
+    'slot [secret at slots.0.id]: the messages API answered 401',
+  );
+});
+
+test('it masks a read value that a kind throws as a bare string', () => {
+  const stub = buildStubSecrets({ 'op://vault-test/item-a/token': 'test-secret-token' });
+
+  const kinds = buildSecretKinds(
+    {
+      // a value that is not an Error, as a kind built on a library that throws strings could give
+      'alerts-prometheus': (params) => {
+        const reason: unknown = `bad token ${String(params['token'])}`;
+
+        return Promise.reject(reason);
+      },
+    },
+    stub.secrets,
+  );
+
+  const run = kinds['alerts-prometheus']?.({ token: 'op://vault-test/item-a/token' });
+
+  expect(run).rejects.toThrowWithMessage(Error, 'bad token [secret at token]');
 });

@@ -34,16 +34,16 @@ function makeSecretKind(
     // in the order of the params, so the first unread reference is the same on every run
     const values = new Map(answers.map((read) => [read.secret.reference, toSecretValue(read)]));
 
-    const secretValues = [...values.values()];
+    const masks = buildSecretMasks(answers, values);
 
     // A kind can quote any param, such as a slot id, so the value never reaches stu through it.
     const faults = await kind(buildResolvedParams(params, values)).catch((error: unknown) => {
-      throw toMaskedError(error, secretValues);
+      throw toMaskedError(error, masks);
     });
 
     return faults.map((fault) => ({
-      key: toMaskedText(fault.key, secretValues),
-      line: toMaskedText(fault.line, secretValues),
+      key: toMaskedText(fault.key, masks),
+      line: toMaskedText(fault.line, masks),
     }));
   };
 }
@@ -86,6 +86,33 @@ function toSecretValue(read: SecretRead): string {
     .exhaustive();
 }
 
+interface SecretMask {
+  readonly value: string;
+
+  // names the param's path, so two masked values in fault keys stay two faults
+  readonly label: string;
+}
+
+// The longest value goes first, so a value that holds a shorter one is masked whole.
+function buildSecretMasks(
+  answers: readonly SecretRead[],
+  values: ReadonlyMap<string, string>,
+): SecretMask[] {
+  const labels = new Map<string, string>();
+
+  for (const read of answers) {
+    const value = values.get(read.secret.reference);
+
+    if (value !== undefined && !labels.has(value)) {
+      labels.set(value, `[secret at ${read.secret.path}]`);
+    }
+  }
+
+  return [...labels]
+    .map(([value, label]) => ({ value, label }))
+    .toSorted((first, second) => second.value.length - first.value.length);
+}
+
 function buildResolvedParams(
   params: object,
   values: ReadonlyMap<string, string>,
@@ -111,14 +138,19 @@ function buildResolvedValue(value: unknown, values: ReadonlyMap<string, string>)
   return buildResolvedParams(value, values);
 }
 
-function toMaskedError(error: unknown, secretValues: readonly string[]): unknown {
-  if (!(error instanceof Error) || !secretValues.some((value) => error.message.includes(value))) {
+// A kind can throw a value that is not an Error, such as a string, and the engine sends its text.
+function toMaskedError(error: unknown, masks: readonly SecretMask[]): unknown {
+  if (!(error instanceof Error)) {
+    return new Error(toMaskedText(String(error), masks));
+  }
+
+  if (!masks.some((mask) => error.message.includes(mask.value))) {
     return error;
   }
 
-  return new Error(toMaskedText(error.message, secretValues));
+  return new Error(toMaskedText(error.message, masks));
 }
 
-function toMaskedText(text: string, secretValues: readonly string[]): string {
-  return secretValues.reduce((masked, value) => masked.replaceAll(value, '[secret]'), text);
+function toMaskedText(text: string, masks: readonly SecretMask[]): string {
+  return masks.reduce((masked, mask) => masked.replaceAll(mask.value, mask.label), text);
 }
