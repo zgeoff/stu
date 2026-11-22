@@ -118,8 +118,9 @@ Everything pushed here is public, including commit messages and PR descriptions.
 
 - Leave out home directory paths, host names, addresses, private network names and cloud account
   details.
-- Leave out people's names, session IDs, tokens, spend figures, account details and issue tracker
-  IDs.
+- Leave out people's names, session IDs, tokens, spend figures and account details.
+- Leave issue tracker IDs out of docs, skills and code comments. A PR description may name the
+  item it builds.
 - In tests and fixtures, use invented values, such as `/tmp/stu-test` for a path.
 - Before each commit, search the staged diff:
 
