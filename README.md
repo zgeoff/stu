@@ -18,8 +18,8 @@ sends stu a message when a fault opens and another when the fault recovers.
 
 ## Quick start
 
-Install the dependencies with the Bun version that `packageManager` in
-[package.json](./package.json) names:
+Install the dependencies with the Bun version in the `packageManager` field of
+[package.json](./package.json):
 
 ```bash
 bun install
@@ -36,8 +36,8 @@ bun run test
 bun run check:docs
 ```
 
-CI runs the package scripts that the `BUN_CHECK_SCRIPTS` repo variable lists. It also scans each
-pull request for secrets, and checks its title and description.
+CI runs the package scripts named in the `BUN_CHECK_SCRIPTS` repo variable. It also scans each pull
+request for secrets, and checks its title and description.
 
 ## Layout
 
@@ -50,4 +50,4 @@ pull request for secrets, and checks its title and description.
 
 ## Documentation
 
-[docs/](./docs/README.md) covers how the watcher works and how to run it.
+To learn how the watcher works and how to run it, read [docs/](./docs/README.md).

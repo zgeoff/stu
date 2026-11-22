@@ -26,10 +26,10 @@ None.
   [layout](../../../AGENTS.md#layout) lets yours import, for `start-stub-`, `build-stub-` and
   `make-stub-`. Use the one you find.
 - Start [`start-stub-atc.ts`](../../../adapters/notifier-atc/src/test-utils/start-stub-atc.ts) of
-  `@stu/notifier-atc` for a test that sends to the atc daemon. It answers `@atcx/client`'s hello for
-  the contract major that its rules name. Pass the stub's `socketPath` to `createAtcClient`, or seed
-  `daemon.json` with it through the `daemonRecord` seeder of the same package when the code under
-  test finds the daemon itself.
+  `@stu/notifier-atc` for a test that sends to the atc daemon. It answers `@atcx/client`'s hello
+  only for the contract major you pass in its `major` rule. Pass the stub's `socketPath` to
+  `createAtcClient`, or seed `daemon.json` with it through the `daemonRecord` seeder of the same
+  package when the code under test finds the daemon itself.
 - Start [`start-stub-http.ts`](../../../adapters/probe-net/src/test-utils/start-stub-http.ts) or
   [`start-stub-tcp.ts`](../../../adapters/probe-net/src/test-utils/start-stub-tcp.ts) of
   `@stu/probe-net` for a test of an HTTP or TCP probe.

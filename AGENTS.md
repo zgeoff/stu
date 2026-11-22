@@ -1,12 +1,12 @@
 # Working in stu
 
 stu holds what the owner's conversation needs to run, starting with the watcher that reports when
-something breaks and when it recovers. Your job here is one change, from one task. Build what the
-task specifies, and keep the docs true: rewrite each sentence that your change makes false. Hand
+something breaks and when it recovers. Make one change here, for one task. Build what the task
+specifies, and keep the docs true: rewrite each sentence that your change makes false. Hand
 back an open pull request with green CI: watch its checks after each push, and fix each failure.
 Don't merge it: the repo owner merges every pull request.
 
-The mistakes that cost most here:
+These mistakes cost the most here:
 
 - code in a package that the [layout](#layout) doesn't allow;
 - a behaviour change with no change to the doc that describes the behaviour;
@@ -15,7 +15,7 @@ The mistakes that cost most here:
 ## Key rules
 
 - [Before you start](#before-you-start): load the skills your work needs.
-- [Layout](#layout): code under `modules/` and `libs/` does no I/O.
+- [Layout](#layout): put no I/O in code under `modules/` and `libs/`.
 - [Packages](#packages): one exact version per dependency, in the root catalog.
 - [Checks](#checks): run the local checks before you push. Never run the type-aware lint locally.
 - [Commits and pull requests](#commits-and-pull-requests): Conventional Commits, one PR per change,
@@ -24,9 +24,9 @@ The mistakes that cost most here:
 
 ## Before you start
 
-- When the task names a pull request or an issue it depends on, check with `gh` that the pull
-  request has merged, or that the issue is closed as completed. When it isn't, stop: open no pull
-  request, and name that work in your reply.
+- When the task depends on a pull request or an issue, check with `gh` that the pull request has
+  merged, or that the issue is closed as completed. Otherwise, stop: open no pull request, and name
+  that work in your reply.
 - Load the skill for the work before you start it. The skills are in `.agents/skills/`, and
   `.claude/skills` links to that folder:
 
@@ -41,20 +41,20 @@ The mistakes that cost most here:
 - The repo-sync workflow copies the shared skills from
   [zgeoff/skills](https://github.com/zgeoff/skills), and the shared workflows, hooks and scripts
   from [zgeoff/tools](https://github.com/zgeoff/tools), and overwrites local changes. Never edit a
-  synced file here: `review.json` lists the synced files beyond those the shared noslop config
-  lists. When a synced file is wrong, say so in your PR description.
+  synced file here. The synced files are those in the shared noslop config, plus those in
+  `review.json`. When a synced file is wrong, say so in your PR description.
 
 ## Layout
 
 The workspace has four kinds of package. Each package's folder name is its package name, under
 `@stu/`, such as `modules/health` for `@stu/health`, and every package sets `"private": true`.
 
-- `apps/`: the programs that run. An app builds the adapters and passes them in.
-- `modules/`: the domain logic. A module reads no files, starts no processes, makes no network
-  calls, and reads neither the clock nor the environment. Pass it the time, the settings and the adapters it calls as arguments. Its tests can then hand it fakes and touch no outside system.
-- `adapters/`: one package for each outside system.
-- `libs/`: types, schemas and pure helpers that two or more packages use. A lib does no I/O, the
-  same as a module.
+- `apps/` holds the programs that run. In an app, build the adapters and pass them to the modules.
+- `modules/` holds the domain logic. In a module, read no files, start no processes, make no
+  network calls, and read neither the clock nor the environment. Pass the module the time, the settings and the adapters it calls as arguments. Its tests can then hand it fakes and touch no outside system.
+- `adapters/` holds one package for each outside system.
+- `libs/` holds types, schemas and pure helpers that two or more packages use. Keep I/O out of a
+  lib, the same as a module.
 
 These checks enforce the layout:
 
@@ -71,7 +71,7 @@ exception to a rule.
 
 ## Packages
 
-- Pin every external version once, exactly, in the root `workspaces.catalog`. A package writes
+- Pin every external version once, exactly, in the root `workspaces.catalog`. In each package, write
   `"catalog:"` for an external dependency and `"workspace:*"` for another `@stu/*` package.
 - Install with the Bun version in `packageManager`. Another version rewrites unrelated lines of
   `bun.lock`.
@@ -79,8 +79,8 @@ exception to a rule.
   `minimumReleaseAgeExcludes` in `bunfig.toml`. Renovate bumps these packages as soon as they
   publish, and without the entry `bun install` refuses the bump. A scope pattern such as `@zgeoff/*`
   lets nothing through.
-- Never ignore an audit finding to get past CI's dependency audit. An ignore that
-  `audit-ignores.json` records, with its reason and expiry, is the one exception.
+- Never ignore an audit finding to get past CI's dependency audit. The one exception
+  is an ignore recorded in `audit-ignores.json`, with its reason and expiry.
 
 ## Checks
 
@@ -104,11 +104,12 @@ exception to a rule.
 
 ## Commits and pull requests
 
-- Every change reaches `main` through a pull request from its own branch. Open it with the repo's
-  pull request template.
-- Commit messages and PR titles follow [Conventional Commits](https://www.conventionalcommits.org/).
-  The subject starts in lowercase, uses the imperative ("add X", never "added X"), and keeps the
-  whole first line to 72 characters or fewer.
+- Put each change on its own branch, and open a pull request into `main` with the repo's pull
+  request template.
+- Write commit messages and PR titles as
+  [Conventional Commits](https://www.conventionalcommits.org/). Start the subject in lowercase, use
+  the imperative ("add X", never "added X"), and keep the whole first line to 72 characters or
+  fewer.
 - Add no attribution lines: no co-author trailers and no generator notes.
 
 ## Public repo

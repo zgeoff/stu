@@ -20,11 +20,12 @@ The engine prefixes each fault key with its check id, so two checks never share 
 holds no `:`, so the bare id is free for the check's own cannot-run fault: a check that throws or
 runs past its timeout opens that fault, and its next good run clears it. A check that throws clears
 none of its other faults, because a check that cannot look has not seen them recover. The program
-exits when the run ends, which stops a probe still running past its timeout, and the service stops a
-run that outlives its own time limit, so one hung probe never holds back the next run. No send
-starts once the run is past its send window, and a send still running a little after the window
-closes is cut. A send it skips or cuts stays owed for the next run, so a hung atc still leaves the
-run time to save what it found.
+exits when the run ends, which stops a probe still running past its timeout. The service stops a run
+that outlives its own time limit, so one hung probe never holds back the next run.
+
+The send window leaves the run time to save what it found when atc hangs. No send starts once the
+run is past its send window, and the run cuts a send still running a little after the window closes.
+A send that the run skips or cuts stays owed for the next run.
 
 A check with `everyMin` runs when that many minutes have passed since its last run, less a few
 seconds of slack, so a timer that fires a little early still runs it. A run that throws still counts
@@ -60,16 +61,16 @@ The [`@stu/secrets-op`](../../adapters/secrets-op/README.md) adapter reads each 
 `op read`, and drops `op`'s stderr. `op` gets only `PATH`, `HOME` and the service account token. The
 watcher takes that token from its own `OP_SERVICE_ACCOUNT_TOKEN` environment variable, which the
 systemd service loads from an env file, so no file in the config's folder holds a token. A run
-without the token reads no reference, and each check that holds one opens its cannot-run fault. Each
-reference names its vault and item by id, because 1Password counts a lookup by name as three
+without the token reads no reference, and each check that holds one opens its cannot-run fault. Name
+the vault and the item in each reference by id, because 1Password counts a lookup by name as three
 requests against the service account's limit.
 
 ## The alert and quota kinds
 
 The alert and quota kinds read what other systems already watch. Each one throws when it cannot read
 its source, so the engine opens the check's cannot-run fault and reports none of the source's faults
-as recovered. The engine sends a thrown message to stu, so a kind never puts a token, a URL or a
-response body in one.
+as recovered. The engine sends a thrown message to stu, so never put a token, a URL or a response
+body in a kind's thrown message.
 
 | Kind                | Reads                                                                 | Fault key                                                                         |
 | ------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -85,8 +86,8 @@ where a missing label equals a missing label:
 - a `warning` alert silences an `info` alert with the same `namespace` and `alertname`;
 - a firing `InfoInhibitor` silences every `info` alert in its `namespace`.
 
-These rules are a copy of the observability stack's, so a change to the stack's inhibit rules needs
-the same change here.
+These rules copy the observability stack's. When you change the stack's inhibit rules, make the same
+change here.
 
 `alerts-axiom` counts a monitor as firing while the newest notification in its history is `open`.
 When an `open` and a `closed` notification share the newest time, the monitor counts as firing.
