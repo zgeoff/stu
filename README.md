@@ -11,7 +11,7 @@
   </p>
 </div>
 
-The programs that stu, the owner's conversation, needs to run.
+What stu, the owner's conversation, needs to run.
 
 The repo holds one program: the watcher. It checks the owner's PC and services once a minute, and
 sends stu a message when a fault opens and another when the fault recovers.
