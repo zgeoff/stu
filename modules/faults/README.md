@@ -1,4 +1,4 @@
-The watcher's engine: which checks are due, what changed since the last run, and the message stu is
-owed for each change.
+The watcher's engine works out which checks are due, what changed since the last run, and which
+message stu should get for each change.
 
-[The watcher](../../docs/architecture/watcher.md) describes how the packages fit together.
+To see how the packages fit together, read [the watcher](../../docs/architecture/watcher.md).

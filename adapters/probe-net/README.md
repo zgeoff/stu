@@ -1,3 +1,3 @@
 The tcp and http check kinds.
 
-[The watcher](../../docs/architecture/watcher.md) describes how the packages fit together.
+To see how the packages fit together, read [the watcher](../../docs/architecture/watcher.md).

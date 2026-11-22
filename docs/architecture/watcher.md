@@ -1,10 +1,11 @@
 # The watcher
 
 The watcher tells stu when something of the owner's breaks, and again when it recovers. stu gets one
-message when a fault opens and one when it clears, and never a message when nothing changed. The
-watcher remembers what stu has heard in one JSON file, the reported file, so a restart repeats no
-message that the watcher knows stu got. Each message reaches stu through atc as a message from a
-local program named `stu-watch`.
+message when a fault opens and one when it clears, unless the watcher resends a message after atc
+has forgotten its key, as [Sending each change once](#sending-each-change-once) says. stu gets no
+message when nothing changed. The watcher remembers what stu has heard in one JSON file, the
+reported file, so a restart repeats no message that the watcher knows stu got. Each message that the
+systemd service sends reaches stu through atc as a message from a local program named `stu-watch`.
 
 [The overview](./overview.md) shows where the watcher runs and what it talks to.
 
@@ -19,20 +20,21 @@ The engine prefixes each fault key with its check id, so two checks never share 
 holds no `:`, so the bare id is free for the check's own cannot-run fault: a check that throws or
 runs past its timeout opens that fault, and its next good run clears it. A check that throws clears
 none of its other faults, because a check that cannot look has not seen them recover. The program
-exits when the run ends, which stops a probe still running past its timeout, and the service stops a
-run that outlives its own time limit, so one hung probe never holds back the next run. No send
-starts once the run is past its send window, and a send still running a little after the window
-closes is cut. A send it skips or cuts stays owed for the next run, so a hung atc still leaves the
-run time to save what it found.
+exits when the run ends, which stops a probe still running past its timeout. The service stops a run
+that outlives its own time limit, so one hung probe never holds back the next run.
+
+The send window leaves the run time to save what it found when atc hangs. No send starts once the
+run is past its send window, and the run cuts a send still running a little after the window closes.
+A send that the run skips or cuts stays owed for the next run.
 
 A check with `everyMin` runs when that many minutes have passed since its last run, less a few
 seconds of slack, so a timer that fires a little early still runs it. A run that throws still counts
 as a run, so a slow kind keeps its interval while it fails.
 
-Each kind gets only the read-only ports it uses, and no kind's package depends on the notifier, so
-no kind can send stu a message. No kind gets a process runner or 1Password's environment. The
-session kinds read atc through a port that offers only reads. The alert and quota kinds call HTTP
-through a `fetch` port that the app passes in, so a test answers their requests without a server.
+Each kind gets only the ports it uses, and no kind's package depends on the notifier, so no kind can
+send stu a message. No kind gets a process runner or 1Password's environment. The session kinds read
+atc through a port that offers only reads. The alert and quota kinds call HTTP through a `fetch`
+port that the app passes in, so a test answers their requests without a server.
 
 ## Secrets in check params
 
@@ -59,16 +61,16 @@ The [`@stu/secrets-op`](../../adapters/secrets-op/README.md) adapter reads each 
 `op read`, and drops `op`'s stderr. `op` gets only `PATH`, `HOME` and the service account token. The
 watcher takes that token from its own `OP_SERVICE_ACCOUNT_TOKEN` environment variable, which the
 systemd service loads from an env file, so no file in the config's folder holds a token. A run
-without the token reads no reference, and each check that holds one opens its cannot-run fault. Each
-reference names its vault and item by id, because 1Password counts a lookup by name as three
+without the token reads no reference, and each check that holds one opens its cannot-run fault. Name
+the vault and the item in each reference by id, because 1Password counts a lookup by name as three
 requests against the service account's limit.
 
 ## The alert and quota kinds
 
-Three kinds read what other systems already watch. Each one throws when it cannot read its source,
-so the engine opens the check's cannot-run fault and reports none of the source's faults as
-recovered. The engine sends a thrown message to stu, so a kind never puts a token, a URL or a
-response body in one.
+The alert and quota kinds read what other systems already watch. Each one throws when it cannot read
+its source, so the engine opens the check's cannot-run fault and reports none of the source's faults
+as recovered. The engine sends a thrown message to stu, so never put a token, a URL or a response
+body in a kind's thrown message.
 
 | Kind                | Reads                                                                 | Fault key                                                                         |
 | ------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
@@ -77,15 +79,15 @@ response body in one.
 | `quota-anthropic`   | each Claude slot's unified rate-limit headers, from a 1-token request | the slot's id in the config                                                       |
 
 `alerts-prometheus` drops what Alertmanager never sends on. It drops `Watchdog` and `InfoInhibitor`,
-which Alertmanager routes to its null receiver. It also applies the chart's three default inhibit
-rules, where a missing label equals a missing label:
+which Alertmanager routes to its null receiver. It also applies the chart's default inhibit rules,
+where a missing label equals a missing label:
 
 - a `critical` alert silences a `warning` or `info` alert with the same `namespace` and `alertname`;
 - a `warning` alert silences an `info` alert with the same `namespace` and `alertname`;
 - a firing `InfoInhibitor` silences every `info` alert in its `namespace`.
 
-These rules are a copy of the observability stack's, so a change to the stack's inhibit rules needs
-the same change here.
+These rules copy the observability stack's. When you change the stack's inhibit rules, make the same
+change here.
 
 `alerts-axiom` counts a monitor as firing while the newest notification in its history is `open`.
 When an `open` and a `closed` notification share the newest time, the monitor counts as firing.
@@ -121,7 +123,7 @@ stateDiagram-v2
   clearing --> [*]: atc takes the recovery
 ```
 
-Each fault in the reported file is in one of three phases. An opening fault owes stu its open
+Each fault in the reported file is opening, open or clearing. An opening fault owes stu its open
 message, an open fault owes nothing, and a clearing fault owes stu its recovery. A send that atc
 takes moves the fault on, and a send that fails leaves the fault owing it, so the next run sends it
 again.
@@ -143,7 +145,7 @@ the fault opened. The engine stores the key in the reported file before the firs
 key once and answers a repeat with the first send's message, so a resend of a message that reached
 stu adds nothing.
 
-atc refuses to run a key again in two cases:
+atc refuses to run a key again in these cases:
 
 - atc answers `outcome_unknown` when it cannot tell whether the first send ran. The notifier asks
   atc for the message whose id the error holds. When atc holds it, the send counts as taken. When

@@ -13,22 +13,21 @@ fault it finds. You need Bun at `~/.bun/bin/bun`, a running atc daemon, the atc 
    cp apps/watch/stu-watch.config.example.json apps/watch/stu-watch.config.json
    ```
 
-2. Set `notify.session` to the atc id of stu's session. The
-   [config schema](../../libs/model/src/watch-config-schema.ts) defines `notify`, `statePath` and
-   the other top-level keys.
-3. Edit `checks`. Each check gives a kind and its params. The kinds are `memory`, `disk`, `tcp`,
+2. Set `notify.session` to the atc id of stu's session. Find `notify`, `statePath` and the other
+   top-level keys in the [config schema](../../libs/model/src/watch-config-schema.ts).
+3. Edit `checks`. Give each check a kind and its params. The kinds are `memory`, `disk`, `tcp`,
    `http`, `session-dead`, `session-stuck`, `alerts-prometheus`, `alerts-axiom` and
-   `quota-anthropic`. `session-dead` takes no params. Each other kind lists its params in the schema
-   near the top of its `make-*-kind.ts` file in `adapters/`.
+   `quota-anthropic`. `session-dead` takes no params. Find the params of each other kind in the
+   schema near the top of its `make-*-kind.ts` file in `adapters/`.
 4. For `alerts-prometheus`, set `grafanaURL`, the uid of Grafana's Prometheus datasource, and the
    `op://` reference of a Grafana Viewer token.
 5. For `alerts-axiom`, set the `op://` reference of an Axiom token that can read the monitors and
    their datasets.
 6. For `quota-anthropic`, set the `op://` reference of each slot's token.
 
-Write each token as an `op://<vault_id>/<item_id>/<field>` reference, with the vault and item ids:
-1Password counts a lookup by name as three requests. The watcher reads each reference before the
-check runs. Any string param can be a reference.
+Write each token as an `op://<vault_id>/<item_id>/<field>` reference, with the vault and item ids,
+because 1Password counts a lookup by name as three requests. The watcher reads each reference before
+the check runs. Any string param can be a reference.
 
 The watcher reads a relative `statePath` from the config file's folder. git ignores
 `stu-watch.config.json` and `stu-watch.reported.json` wherever they are, because they hold private
@@ -96,10 +95,11 @@ the service's `PATH`. When `op` is in another folder, set `Environment=PATH=` in
    systemctl --user show -p ExecMainStatus stu-watch.service
    ```
 
-   Expect: `ExecMainStatus=0`. A `1` means the run failed: a send that the next run tries again, or
-   a config or state file it cannot read. `journalctl --user -u stu-watch.service` shows the reason
-   the run printed, such as `atc send failed: no atc daemon answers at <socket path>`. In that case,
-   start the atc daemon and repeat step 2.
+   Expect: `ExecMainStatus=0`. A `1` means the run failed, either on a send that the next run tries
+   again or on a config or state file the run cannot read. Run
+   `journalctl --user -u stu-watch.service` to see the reason the run printed, such as
+   `atc send failed: no atc daemon answers at <socket path>`. For that error, start the atc daemon
+   and repeat step 2.
 
 4. Start the timer:
 

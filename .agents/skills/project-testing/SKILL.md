@@ -22,13 +22,14 @@ None.
 
 ## Stand-ins
 
-- Search `src/test-utils/` of each package for `start-stub-`, `build-stub-` and `make-stub-` before
-  you write a stand-in, and use the one you find.
+- Before you write a stand-in, search `src/test-utils/` of your own package, and of each package the
+  [layout](../../../AGENTS.md#layout) lets yours import, for `start-stub-`, `build-stub-` and
+  `make-stub-`. Use the one you find.
 - Start [`start-stub-atc.ts`](../../../adapters/notifier-atc/src/test-utils/start-stub-atc.ts) of
-  `@stu/notifier-atc` for a test that sends to the atc daemon. It answers `@atcx/client`'s hello for
-  the contract major that its rules name. Pass the stub's `socketPath` to `createAtcClient`, or seed
-  `daemon.json` with it through the `daemonRecord` seeder of the same package when the code under
-  test finds the daemon itself.
+  `@stu/notifier-atc` for a test that sends to the atc daemon. It answers `@atcx/client`'s hello
+  only for the contract major you pass in its `major` rule. Pass the stub's `socketPath` to
+  `createAtcClient`, or seed `daemon.json` with it through the `daemonRecord` seeder of the same
+  package when the code under test finds the daemon itself.
 - Start [`start-stub-http.ts`](../../../adapters/probe-net/src/test-utils/start-stub-http.ts) or
   [`start-stub-tcp.ts`](../../../adapters/probe-net/src/test-utils/start-stub-tcp.ts) of
   `@stu/probe-net` for a test of an HTTP or TCP probe.
@@ -48,4 +49,5 @@ None.
   `@stu/probe-net` uses.
 - When only tests import the other package, list it under `devDependencies` as `"workspace:*"`.
 - Import only from a package that the [layout](../../../AGENTS.md#layout) lets yours import.
-  `turbo boundaries` checks test files too, so a module's test never uses an adapter's test util.
+  `turbo boundaries` checks test files too. Never import an adapter's test util into a module's
+  test.
