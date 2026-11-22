@@ -3,9 +3,11 @@
 The watcher tells stu when something of the owner's breaks, and again when it recovers. stu gets one
 message when a fault opens and one when it clears, and never a message when nothing changed. The
 watcher remembers what stu has heard in one JSON file, the reported file, so a restart repeats no
-message that the watcher knows stu got. The one exception is a resend after atc has forgotten the
-send's key, as [Sending each change once](#sending-each-change-once) says. Each message reaches stu
-through atc as a message from a local program named `stu-watch`.
+message that the watcher knows stu got. Each message reaches stu through atc as a message from a
+local program named `stu-watch`.
+
+stu gets a message twice in one case: a resend after atc has forgotten the send's key, as
+[Sending each change once](#sending-each-change-once) says.
 
 [The overview](./overview.md) shows where the watcher runs and what it talks to.
 
@@ -30,10 +32,10 @@ A check with `everyMin` runs when that many minutes have passed since its last r
 seconds of slack, so a timer that fires a little early still runs it. A run that throws still counts
 as a run, so a slow kind keeps its interval while it fails.
 
-Each kind gets only the read-only ports it uses, and no kind's package depends on the notifier, so
-no kind can send stu a message. No kind gets a process runner or 1Password's environment. The
-session kinds read atc through a port that offers only reads. The alert and quota kinds call HTTP
-through a `fetch` port that the app passes in, so a test answers their requests without a server.
+Each kind gets only the ports it uses, and no kind's package depends on the notifier, so no kind can
+send stu a message. No kind gets a process runner or 1Password's environment. The session kinds read
+atc through a port that offers only reads. The alert and quota kinds call HTTP through a `fetch`
+port that the app passes in, so a test answers their requests without a server.
 
 ## Secrets in check params
 

@@ -86,7 +86,7 @@ exception to a rule.
 
 - `bun run typecheck`, `bun run lint` and `bun run test` are the local checks. Run them before you
   push, and fix every failure. `bun run test` runs `rig unit`, which runs the tests in random order.
-- When you change a doc, a README or a skill, run `bun run check:docs`, the docs checks, and fix every failure.
+- When you change a doc, a README or a skill, run `bun run check:docs`, the docs checks, and fix each failure in a file you changed.
 - `bun run lint:full` adds the type-aware pass and the type check. Never run it locally, because
   it needs more memory than an agent's host has.
 - lefthook runs the light checks before a commit and a push: lint on the files your branch changes,

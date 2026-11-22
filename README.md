@@ -41,7 +41,7 @@ pull request for secrets, and checks its title and description.
 
 ## Layout
 
-- `apps/`: the programs that run, such as the watcher.
+- `apps/`: the watcher, the one program that runs.
 - `modules/`: the domain logic, which does no I/O.
 - `adapters/`: one package for each outside system.
 - `libs/`: types, schemas and pure helpers that two or more packages share.
