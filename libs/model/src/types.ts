@@ -31,6 +31,12 @@ export interface Notifier {
   readonly send: (message: OwedMessage) => Promise<SendOutcome>;
 }
 
+// A notifier kind: from the params of the config's notify block to the notifier. It throws on
+// params it cannot use.
+export type MakeNotifier = (params: Readonly<Record<string, unknown>>) => Notifier;
+
+export type NotifierTable = Readonly<Record<string, MakeNotifier>>;
+
 export type HTTPAnswer =
   | { readonly kind: 'answered'; readonly status: number }
   | { readonly kind: 'unreached'; readonly reason: string };
@@ -109,6 +115,16 @@ export type RunProgram = (
   argv: readonly [string, ...string[]],
   options: ProgramRunOptions,
 ) => Promise<ProgramResult>;
+
+// unread: the reason names neither the reference nor any secret, because it reaches stu.
+export type SecretAnswer =
+  | { readonly kind: 'read'; readonly value: string }
+  | { readonly kind: 'unread'; readonly reason: string };
+
+export interface SecretsPort {
+  // the value of a secret reference, such as op://<vault_id>/<item_id>/credential
+  readonly readSecret: (reference: string) => Promise<SecretAnswer>;
+}
 
 // The global fetch, narrowed to the one form the alert and quota kinds call.
 export type FetchHTTP = (url: URL, init: RequestInit) => Promise<Response>;

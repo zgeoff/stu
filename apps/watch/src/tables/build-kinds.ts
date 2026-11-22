@@ -1,7 +1,7 @@
 import { makeAxiomAlertsKind } from '@stu/alerts-axiom';
 import { makePrometheusAlertsKind } from '@stu/alerts-prometheus';
 import { makeDiskKind, makeMemoryKind } from '@stu/host-linux';
-import type { FetchHTTP, HostPort, KindTable, NetPort, RunProgram, SessionsPort } from '@stu/model';
+import type { FetchHTTP, HostPort, KindTable, NetPort, SessionsPort } from '@stu/model';
 import { makeHTTPKind, makeTCPKind } from '@stu/probe-net';
 import { makeQuotaAnthropicKind } from '@stu/quota-anthropic';
 import { makeDeadSessionKind, makeStuckSessionKind } from '@stu/sessions-atc';
@@ -12,11 +12,7 @@ export interface KindPorts {
   readonly net: NetPort;
   readonly sessions: SessionsPort;
   readonly clock: Pick<Clock, 'now' | 'sleep'>;
-  readonly run: RunProgram;
   readonly fetch: FetchHTTP;
-
-  // what op needs of the watcher's environment, such as PATH and HOME
-  readonly opEnv: Readonly<Record<string, string>>;
 }
 
 export function buildKinds(ports: KindPorts): KindTable {
@@ -32,10 +28,6 @@ export function buildKinds(ports: KindPorts): KindTable {
       fetch: ports.fetch,
       clock: ports.clock,
     }),
-    'quota-anthropic': makeQuotaAnthropicKind({
-      run: ports.run,
-      fetch: ports.fetch,
-      opEnv: ports.opEnv,
-    }),
+    'quota-anthropic': makeQuotaAnthropicKind({ fetch: ports.fetch }),
   };
 }

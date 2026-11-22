@@ -1,15 +1,17 @@
 import { parseArgs } from 'node:util';
 import { createHostLinux } from '@stu/host-linux';
-import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
+import { createAtcClient } from '@stu/notifier-atc';
 import { createProbeNet } from '@stu/probe-net';
+import { createSecretsOp } from '@stu/secrets-op';
 import { createSessionsAtc } from '@stu/sessions-atc';
 import { readReported, writeReported } from '@stu/state-file';
 import { systemClock } from '@zgeoff/std';
 import packageJSON from '../package.json' with { type: 'json' };
-import { buildKinds } from './build-kinds.ts';
 import { readWatchConfig } from './read-watch-config.ts';
 import { runProgram } from './run-program.ts';
 import { runWatchOnce } from './run-watch-once.ts';
+import { buildKinds } from './tables/build-kinds.ts';
+import { buildNotifiers } from './tables/build-notifiers.ts';
 
 // The systemd user timer runs `bun apps/watch/src/main.ts <config path>` once a minute.
 const [configPath] = parseArgs({ args: Bun.argv.slice(2), allowPositionals: true }).positionals;
@@ -32,11 +34,16 @@ const result = await runWatchOnce({
     net: createProbeNet(),
     sessions: createSessionsAtc(atc),
     clock: systemClock,
-    run: runProgram,
     fetch,
-    opEnv: { PATH: process.env['PATH'] ?? '', HOME: process.env['HOME'] ?? '' },
   }),
-  createNotifier: (session) => createAtcNotifier({ client: atc, session, from: 'stu-watch' }),
+  notifiers: buildNotifiers({ atc }),
+  secrets: createSecretsOp({
+    run: runProgram,
+    opEnv: { PATH: process.env['PATH'] ?? '', HOME: process.env['HOME'] ?? '' },
+
+    // from the environment, so the config holds no token; the service reads it from its env file
+    serviceAccountToken: process.env['OP_SERVICE_ACCOUNT_TOKEN'],
+  }),
   clock: systemClock,
   readConfig: readWatchConfig,
   readReported,

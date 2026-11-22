@@ -22,7 +22,7 @@ test('it writes stu-watch.config.json in the folder and gives its path', async (
   expect(configPath).toBe(join(ctx.folder, 'stu-watch.config.json'));
 
   expect(written).toStrictEqual({
-    atc: { session: 's-stu' },
+    notify: { kind: 'atc', session: 's-stu' },
     statePath: 'reported.json',
     checks: [{ id: 'tunnel', kind: 'tcp', host: 'tunnel-a.example', port: 2222 }],
   });

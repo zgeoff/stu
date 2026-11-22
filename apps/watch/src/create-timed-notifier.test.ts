@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAtcClient, createAtcNotifier } from '@stu/notifier-atc';
+import { createAtcClient, makeAtcNotifier } from '@stu/notifier-atc';
 import { startStubAtc } from '@stu/notifier-atc/test-utils/start-stub-atc';
 import { createFakeClock, runClockUntil } from '@zgeoff/testing/clock';
 import { createTimedNotifier } from './create-timed-notifier.ts';
@@ -31,15 +31,14 @@ async function setupTest() {
     folder,
     atc,
     createNotifier: (socketPath: string) =>
-      createAtcNotifier({
+      makeAtcNotifier({
         client: createAtcClient({
           socketPath,
           client: 'stu-watch/0.1.0',
           timeoutMs: 60_000,
         }),
-        session: 's-stu',
         from: 'stu-watch',
-      }),
+      })({ session: 's-stu' }),
   };
 }
 
