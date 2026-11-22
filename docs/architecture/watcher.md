@@ -66,9 +66,9 @@ requests against the service account's limit.
 
 ## The alert and quota kinds
 
-Three kinds read what other systems already watch. Each one throws when it cannot read its source,
-so the engine opens the check's cannot-run fault and reports none of the source's faults as
-recovered. The engine sends a thrown message to stu, so a kind never puts a token, a URL or a
+The alert and quota kinds read what other systems already watch. Each one throws when it cannot read
+its source, so the engine opens the check's cannot-run fault and reports none of the source's faults
+as recovered. The engine sends a thrown message to stu, so a kind never puts a token, a URL or a
 response body in one.
 
 | Kind                | Reads                                                                 | Fault key                                                                         |
@@ -78,8 +78,8 @@ response body in one.
 | `quota-anthropic`   | each Claude slot's unified rate-limit headers, from a 1-token request | the slot's id in the config                                                       |
 
 `alerts-prometheus` drops what Alertmanager never sends on. It drops `Watchdog` and `InfoInhibitor`,
-which Alertmanager routes to its null receiver. It also applies the chart's three default inhibit
-rules, where a missing label equals a missing label:
+which Alertmanager routes to its null receiver. It also applies the chart's default inhibit rules,
+where a missing label equals a missing label:
 
 - a `critical` alert silences a `warning` or `info` alert with the same `namespace` and `alertname`;
 - a `warning` alert silences an `info` alert with the same `namespace` and `alertname`;
@@ -122,7 +122,7 @@ stateDiagram-v2
   clearing --> [*]: atc takes the recovery
 ```
 
-Each fault in the reported file is in one of three phases. An opening fault owes stu its open
+Each fault in the reported file is opening, open or clearing. An opening fault owes stu its open
 message, an open fault owes nothing, and a clearing fault owes stu its recovery. A send that atc
 takes moves the fault on, and a send that fails leaves the fault owing it, so the next run sends it
 again.
@@ -144,7 +144,7 @@ the fault opened. The engine stores the key in the reported file before the firs
 key once and answers a repeat with the first send's message, so a resend of a message that reached
 stu adds nothing.
 
-atc refuses to run a key again in two cases:
+atc refuses to run a key again in these cases:
 
 - atc answers `outcome_unknown` when it cannot tell whether the first send ran. The notifier asks
   atc for the message whose id the error holds. When atc holds it, the send counts as taken. When

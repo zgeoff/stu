@@ -56,7 +56,7 @@ The workspace has four kinds of package. Each package's folder name is its packa
 - `libs/`: types, schemas and pure helpers that two or more packages use. A lib does no I/O, the
   same as a module.
 
-Three checks enforce the layout:
+These checks enforce the layout:
 
 - `turbo boundaries` fails on an import that the package's tag doesn't allow. Each package's
   `turbo.json` sets its tag, `app`, `module`, `adapter` or `lib`, and the root `turbo.json` lists

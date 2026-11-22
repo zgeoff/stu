@@ -49,4 +49,5 @@ None.
   `@stu/probe-net` uses.
 - When only tests import the other package, list it under `devDependencies` as `"workspace:*"`.
 - Import only from a package that the [layout](../../../AGENTS.md#layout) lets yours import.
-  `turbo boundaries` checks test files too, so a module's test never uses an adapter's test util.
+  `turbo boundaries` checks test files too. Never import an adapter's test util into a module's
+  test.
