@@ -162,11 +162,15 @@ test('it masks a read value that a kind throws as a bare string', () => {
 
   const kinds = buildSecretKinds(
     {
-      // a value that is not an Error, as a kind built on a library that throws strings could give
-      'alerts-prometheus': (params) => {
-        const reason: unknown = `bad token ${String(params['token'])}`;
+      // a request aborted with a string reason throws the string itself, not an Error
+      'alerts-prometheus': async (params) => {
+        const signal = AbortSignal.abort(`bad token ${String(params['token'])}`);
 
-        return Promise.reject(reason);
+        await Promise.resolve();
+
+        signal.throwIfAborted();
+
+        return [];
       },
     },
     stub.secrets,
