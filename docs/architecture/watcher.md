@@ -2,8 +2,9 @@
 
 The watcher tells stu when something of the owner's breaks, and again when it recovers. stu gets one
 message when a fault opens and one when it clears, and never a message when nothing changed. The
-watcher remembers what stu has heard in one JSON file, the reported file, so a restart sends nothing
-twice. Each message reaches stu through atc as a message from a local program named `stu-watch`.
+watcher remembers what stu has heard in one JSON file, the reported file, so a restart repeats no
+message that the watcher knows stu got. Each message reaches stu through atc as a message from a
+local program named `stu-watch`.
 
 [The overview](./overview.md) shows where the watcher runs and what it talks to.
 
@@ -54,12 +55,13 @@ holds no raw token. The watcher reads only the references of the checks that are
   such as a slot id, sends no secret to stu, the reported file or the program's output, and two
   masked fault keys stay two faults.
 
-The `@stu/secrets-op` adapter reads each reference with `op read`, and drops `op`'s stderr. `op`
-gets only `PATH`, `HOME` and the service account token. The watcher takes that token from its own
-`OP_SERVICE_ACCOUNT_TOKEN` environment variable, which the systemd service loads from an env file,
-so no file in the config's folder holds a token. A run without the token reads no reference, and
-each check that holds one opens its cannot-run fault. Each reference names its vault and item by id,
-because 1Password counts a lookup by name as three requests against the service account's limit.
+The [`@stu/secrets-op`](../../adapters/secrets-op/README.md) adapter reads each reference with
+`op read`, and drops `op`'s stderr. `op` gets only `PATH`, `HOME` and the service account token. The
+watcher takes that token from its own `OP_SERVICE_ACCOUNT_TOKEN` environment variable, which the
+systemd service loads from an env file, so no file in the config's folder holds a token. A run
+without the token reads no reference, and each check that holds one opens its cannot-run fault. Each
+reference names its vault and item by id, because 1Password counts a lookup by name as three
+requests against the service account's limit.
 
 ## The alert and quota kinds
 
@@ -158,9 +160,10 @@ retention, such as after the PC slept, reaches stu twice.
 
 ## How the notifier reaches atc
 
-The config's `notify` block picks the notifier by its `kind`, from the notifier table in the watch
-app, as each check picks its kind. `atc` is the one notifier kind, and its `session` param is the
-atc id of stu's session. A run whose `notify` kind is not in the table fails before any check runs.
+The config's `notify` block picks the notifier by its `kind`, from the
+[notifier table](../../apps/watch/src/tables/build-notifiers.ts) in the watch app, as each check
+picks its kind. `atc` is the one notifier kind, and its `session` param is the atc id of stu's
+session. A run whose `notify` kind is not in the table fails before any check runs.
 
 The notifier calls atc through `connect()` from `@atcx/client`, the package that atc's own terminal
 client and CLI use. Each call opens one connection, says hello, makes the one call and closes the

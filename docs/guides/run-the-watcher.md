@@ -13,7 +13,9 @@ fault it finds. You need Bun at `~/.bun/bin/bun`, a running atc daemon, the atc 
    cp apps/watch/stu-watch.config.example.json apps/watch/stu-watch.config.json
    ```
 
-2. Set `notify.session` to the atc id of stu's session.
+2. Set `notify.session` to the atc id of stu's session. The
+   [config schema](../../libs/model/src/watch-config-schema.ts) defines `notify`, `statePath` and
+   the other top-level keys.
 3. Edit `checks`. Each check gives a kind and its params. The kinds are `memory`, `disk`, `tcp`,
    `http`, `session-dead`, `session-stuck`, `alerts-prometheus`, `alerts-axiom` and
    `quota-anthropic`. `session-dead` takes no params. Each other kind lists its params in the schema
