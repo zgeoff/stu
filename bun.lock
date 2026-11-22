@@ -48,6 +48,7 @@
       },
       "devDependencies": {
         "@stu/faults": "workspace:*",
+        "@zgeoff/testing": "catalog:",
       },
     },
     "adapters/host-linux": {
@@ -96,6 +97,12 @@
         "@stu/faults": "workspace:*",
       },
     },
+    "adapters/secrets-op": {
+      "name": "@stu/secrets-op",
+      "dependencies": {
+        "@stu/model": "workspace:*",
+      },
+    },
     "adapters/sessions-atc": {
       "name": "@stu/sessions-atc",
       "dependencies": {
@@ -128,9 +135,11 @@
         "@stu/notifier-atc": "workspace:*",
         "@stu/probe-net": "workspace:*",
         "@stu/quota-anthropic": "workspace:*",
+        "@stu/secrets-op": "workspace:*",
         "@stu/sessions-atc": "workspace:*",
         "@stu/state-file": "workspace:*",
         "@zgeoff/std": "catalog:",
+        "ts-pattern": "catalog:",
       },
       "devDependencies": {
         "@zgeoff/testing": "catalog:",
@@ -479,6 +488,8 @@
     "@stu/probe-net": ["@stu/probe-net@workspace:adapters/probe-net"],
 
     "@stu/quota-anthropic": ["@stu/quota-anthropic@workspace:adapters/quota-anthropic"],
+
+    "@stu/secrets-op": ["@stu/secrets-op@workspace:adapters/secrets-op"],
 
     "@stu/sessions-atc": ["@stu/sessions-atc@workspace:adapters/sessions-atc"],
 

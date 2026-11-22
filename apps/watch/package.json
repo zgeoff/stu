@@ -16,9 +16,11 @@
     "@stu/notifier-atc": "workspace:*",
     "@stu/probe-net": "workspace:*",
     "@stu/quota-anthropic": "workspace:*",
+    "@stu/secrets-op": "workspace:*",
     "@stu/sessions-atc": "workspace:*",
     "@stu/state-file": "workspace:*",
-    "@zgeoff/std": "catalog:"
+    "@zgeoff/std": "catalog:",
+    "ts-pattern": "catalog:"
   },
   "devDependencies": {
     "@zgeoff/testing": "catalog:"
