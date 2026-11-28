@@ -8,6 +8,7 @@ export const featurePaths = {
     'libs/model/{src/**,package.json}',
     'adapters/notifier-atc/{src/**,package.json}',
     'adapters/probe-net/{src/**,package.json}',
+    'adapters/secrets-op/{src/**,package.json}',
     'adapters/state-file/{src/**,package.json}',
   ],
 } as const satisfies Record<string, readonly string[]>;
@@ -63,7 +64,6 @@ export const ignoredPaths = [
   'adapters/alerts-prometheus/**',
   'adapters/host-linux/**',
   'adapters/quota-anthropic/**',
-  'adapters/secrets-op/**',
   'adapters/sessions-atc/**',
   'apps/watch/systemd/**',
   'apps/watch/stu-watch.config.example.json',
