@@ -1,0 +1,19 @@
+{
+  "name": "@stu/verify",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The verify CLI: drives the watcher against a throwaway atc daemon",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsrs --noEmit"
+  },
+  "dependencies": {
+    "@atcx/contract": "catalog:",
+    "@stu/model": "workspace:*",
+    "@stu/notifier-atc": "workspace:*",
+    "@wringer/core": "catalog:",
+    "@wringer/gunshi": "catalog:",
+    "ts-pattern": "catalog:",
+    "zod": "catalog:"
+  }
+}

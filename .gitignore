@@ -31,3 +31,6 @@ Thumbs.db
 stu-watch.config.json
 stu-watch.reported.json
 stu-watch.reported.json.*.tmp
+
+# each verify run's state and evidence
+.wringer/

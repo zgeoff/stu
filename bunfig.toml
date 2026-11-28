@@ -15,6 +15,8 @@ minimumReleaseAge = 604800
 minimumReleaseAgeExcludes = [
   "@atcx/client",
   "@atcx/contract",
+  "@wringer/core",
+  "@wringer/gunshi",
   "@zgeoff/agent-hooks",
   "@zgeoff/bun-test-extended",
   "@zgeoff/chex",

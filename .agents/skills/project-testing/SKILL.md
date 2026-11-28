@@ -29,7 +29,9 @@ None.
   `@stu/notifier-atc` for a test that sends to the atc daemon. It answers `@atcx/client`'s hello
   only for the contract major you pass in its `major` rule. Pass the stub's `socketPath` to
   `createAtcClient`, or seed `daemon.json` with it through the `daemonRecord` seeder of the same
-  package when the code under test finds the daemon itself.
+  package when the code under test finds the daemon itself. Keep the stub for an answer that a real
+  daemon can't be made to give, such as `outcome_unknown`. The `fault-messages` journey of the
+  [`verify`](../verify/SKILL.md) skill sends through a real daemon.
 - Start [`start-stub-http.ts`](../../../adapters/probe-net/src/test-utils/start-stub-http.ts) or
   [`start-stub-tcp.ts`](../../../adapters/probe-net/src/test-utils/start-stub-tcp.ts) of
   `@stu/probe-net` for a test of an HTTP or TCP probe.

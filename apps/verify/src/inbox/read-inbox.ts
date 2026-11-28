@@ -1,0 +1,54 @@
+import { EVENTS_PAGE_SCHEMA, MESSAGE_VIEW_SCHEMA } from '@atcx/contract';
+import type { AtcReader } from '@stu/model';
+import { z } from 'zod';
+import { parseAtcBody } from '../run/parse-atc-body.ts';
+import { collectMessageIDs } from './collect-message-ids.ts';
+
+export const INBOX_MESSAGE_SCHEMA = z.strictObject({
+  from: z.string(),
+  sender: z.string(),
+  text: z.string(),
+});
+
+export type InboxMessage = z.output<typeof INBOX_MESSAGE_SCHEMA>;
+
+// Reads each message from the session's events, so nothing is acked. A session's transcript holds a
+// message only once its claude takes it, and a claude with no login never does.
+export async function readInbox(
+  atc: AtcReader,
+  session: string,
+): Promise<{ messages: InboxMessage[] }> {
+  const events: z.output<typeof EVENTS_PAGE_SCHEMA>['events'][number][] = [];
+
+  const firstAnswer = await atc.read((procedures) =>
+    procedures.events.read({ session, from: 'start', waitMs: 0 }),
+  );
+
+  let page = parseAtcBody('/events/read', firstAnswer, EVENTS_PAGE_SCHEMA);
+
+  events.push(...page.events);
+
+  while (page.more) {
+    const cursor = page.cursor;
+
+    const answer = await atc.read((procedures) =>
+      procedures.events.read({ session, cursor, waitMs: 0 }),
+    );
+
+    page = parseAtcBody('/events/read', answer, EVENTS_PAGE_SCHEMA);
+
+    events.push(...page.events);
+  }
+
+  const messages: InboxMessage[] = [];
+
+  for (const message of collectMessageIDs(events)) {
+    const answer = await atc.read((procedures) => procedures.message.get({ message, waitMs: 0 }));
+
+    const view = parseAtcBody('/message/get', answer, MESSAGE_VIEW_SCHEMA);
+
+    messages.push({ from: view.from, sender: view.sender?.kind ?? 'none', text: view.text });
+  }
+
+  return { messages };
+}
