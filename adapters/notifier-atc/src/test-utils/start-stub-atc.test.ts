@@ -35,7 +35,7 @@ test('it records the hello that comes before each call', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -48,7 +48,7 @@ test('it records the hello that comes before each call', async () => {
   await stub.client.read((procedures) => procedures.message.get({ message: 'm-1' }));
 
   expect(stub.atc.hellos).toStrictEqual([
-    { client: 'stu-watch/0.1.0', protocol: 15, major: 7, auth: { scheme: 'none' } },
+    { client: 'stu-watch/0.1.0', protocol: 15, major: 8, auth: { scheme: 'none' } },
   ]);
 });
 
@@ -56,7 +56,7 @@ test('it refuses a hello that names another contract major with protocol_mismatc
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 8,
+    major: 9,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -71,7 +71,7 @@ test('it refuses a hello that names another contract major with protocol_mismatc
   expect(answer).toStrictEqual({
     kind: 'refused',
     code: 'protocol_mismatch',
-    data: { daemonMajor: 8, clientMajor: 7 },
+    data: { daemonMajor: 9, clientMajor: 8 },
   });
 
   expect(stub.atc.requests).toStrictEqual([]);
@@ -81,7 +81,7 @@ test('it answers a resend of a key it holds with the first send message', async 
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -116,7 +116,7 @@ test('it stores a message once when its key is sent twice', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -153,7 +153,7 @@ test('it answers idempotency_conflict for a held key sent to another session', a
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -188,7 +188,7 @@ test('it answers bad_args for a message it does not hold', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -207,7 +207,7 @@ test('it closes the connection without an answer to a send whose reply it drops'
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
@@ -236,7 +236,7 @@ test('it stores a message whose reply it drops', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
@@ -264,7 +264,7 @@ test('it refuses a key with the code its rules give', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -290,7 +290,7 @@ test('it stores nothing for a key it refuses', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -316,7 +316,7 @@ test('it answers every message read with the refusal its rules give', async () =
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -337,7 +337,7 @@ test('it answers each send it takes with the body its rules give', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -363,7 +363,7 @@ test('it answers /session/list with the descriptor of each session its rules hol
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -385,7 +385,7 @@ test('it answers /session/list with a recorded descriptor that the atc session s
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -432,7 +432,7 @@ test('it answers /session/get with the session and its last activity', async () 
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -463,7 +463,7 @@ test('it answers bad_args for a session it does not hold', async () => {
   const ctx = await setupTest();
 
   const stub = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
