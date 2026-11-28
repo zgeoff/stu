@@ -170,8 +170,8 @@
     },
   },
   "catalog": {
-    "@atcx/client": "7.21.1",
-    "@atcx/contract": "7.21.1",
+    "@atcx/client": "8.0.0",
+    "@atcx/contract": "8.0.0",
     "@commitlint/cli": "21.2.4",
     "@orpc/client": "1.16.1",
     "@orpc/contract": "1.16.1",
@@ -203,9 +203,9 @@
     "zod": "4.6.7",
   },
   "packages": {
-    "@atcx/client": ["@atcx/client@7.21.1", "", { "dependencies": { "@atcx/contract": "^7.21.1", "@orpc/client": "1.16.1", "@orpc/standard-server-peer": "1.16.1" } }, "sha512-Ba9QyLj+DL0EYhJs+GbGu1jY7m3kZju0Cp2jP9TBhT6S2+RqCHky3yUBpXZQc+c4Pjgv2Xz0Uv4WlsoSJREr1w=="],
+    "@atcx/client": ["@atcx/client@8.0.0", "", { "dependencies": { "@atcx/contract": "^8.0.0", "@orpc/client": "1.16.1", "@orpc/standard-server-peer": "1.16.1" } }, "sha512-xzN5B5vkUNbtF1tbvJeQxMGK/BOgo9NjXPKuYEPZqfLUez7jmBKuN61jaSLOfz3q2VkoBkNDCam/jSuu0kDG0g=="],
 
-    "@atcx/contract": ["@atcx/contract@7.21.1", "", { "dependencies": { "@orpc/contract": "1.16.1", "zod": "4.6.7" } }, "sha512-omRe6DAQ1wJFUmXFv4GVfSXhwsSSutRriP2QjzpPTZRIrLmC3u4+1SYSLMrJ6JBZJ+7AMxUewiJESP6Zlpw8rA=="],
+    "@atcx/contract": ["@atcx/contract@8.0.0", "", { "dependencies": { "@orpc/contract": "1.16.1", "zod": "4.6.7" } }, "sha512-VagCFZkWj8Kha988+tIzGq6Va1Kvi/djWeh2wFdxj0qYdn1a/cm9ycmlYcCKpQAMwXOebyYc+XIAmw1STgn/5A=="],
 
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
 

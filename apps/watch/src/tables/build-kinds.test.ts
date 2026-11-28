@@ -35,7 +35,7 @@ async function setupTest() {
       fetch: FetchHTTP,
     ) => {
       const atc = await startStubAtc(folder, {
-        major: 7,
+        major: 8,
         unknownLost: [],
         unknownStored: [],
         dropFirstReply: [],

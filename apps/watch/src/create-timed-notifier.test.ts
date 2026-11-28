@@ -15,7 +15,7 @@ async function setupTest() {
   onTestFinished(() => rm(folder, { recursive: true, force: true }));
 
   const atc = await startStubAtc(folder, {
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],

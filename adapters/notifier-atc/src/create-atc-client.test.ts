@@ -17,7 +17,7 @@ async function setupTest() {
     folder,
     startAtc: async (overrides: Partial<StubAtcRules> = {}) => {
       const atc = await startStubAtc(folder, {
-        major: 7,
+        major: 8,
         unknownLost: [],
         unknownStored: [],
         dropFirstReply: [],
@@ -52,7 +52,7 @@ test('it sends the hello with the contract major and the client name, then makes
 
   expect(answer).toStrictEqual({ kind: 'answered', body: { message: 'm-1', status: 'queued' } });
   expect(atc.hellos).toHaveLength(1);
-  expect(atc.hellos[0]).toMatchObject({ client: 'stu-watch/0.1.0', major: 7 });
+  expect(atc.hellos[0]).toMatchObject({ client: 'stu-watch/0.1.0', major: 8 });
   expect(atc.stored.map((message) => message.text)).toStrictEqual(['FAULT disk:/: 97% full']);
 });
 
@@ -74,7 +74,7 @@ test('it answers refused with the code and data of the daemon refusal', async ()
 
 test('it answers refused with protocol_mismatch when the daemon runs another major', async () => {
   const ctx = await setupTest();
-  const atc = await ctx.startAtc({ major: 8 });
+  const atc = await ctx.startAtc({ major: 9 });
 
   const answer = await ctx
     .createClient(atc.socketPath)

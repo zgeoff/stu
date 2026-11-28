@@ -58,7 +58,7 @@ test('it sends as a local program: a hello name outside atc/, and a message with
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -75,7 +75,7 @@ test('it sends as a local program: a hello name outside atc/, and a message with
   expect(outcome).toStrictEqual({ kind: 'sent' });
 
   expect(atc.hellos).toStrictEqual([
-    { client: 'stu-watch/0.1.0', protocol: 15, major: 7, auth: { scheme: 'none' } },
+    { client: 'stu-watch/0.1.0', protocol: 15, major: 8, auth: { scheme: 'none' } },
   ]);
 
   expect(atc.requests).toStrictEqual([
@@ -95,7 +95,7 @@ test('it answers sent when atc takes the send and answers in a body of another s
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -116,7 +116,7 @@ test('it settles outcome_unknown as sent through /message/get when atc holds the
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [0],
     dropFirstReply: [],
@@ -138,7 +138,7 @@ test('it answers rekey for outcome_unknown when atc holds no message under the e
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [0],
     unknownStored: [],
     dropFirstReply: [],
@@ -162,7 +162,7 @@ test('it answers rekey for idempotency_conflict', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -206,7 +206,7 @@ test('it answers rekey for outcome_unknown without an effectRef', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -227,7 +227,7 @@ test('it answers failed for outcome_unknown when the message read fails for anot
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [0],
     dropFirstReply: [],
@@ -251,7 +251,7 @@ test('it answers failed with the code of any other atc refusal', async () => {
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [],
@@ -272,7 +272,7 @@ test('it resends a recovery whose reply was lost under its first key, then sends
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [1],
@@ -309,7 +309,7 @@ test('it leaves stu one fault message and one recovery when the open reply was l
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],
@@ -336,7 +336,7 @@ test('it stores one message when the first key stays outcome_unknown and the rep
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [0],
     unknownStored: [],
     dropFirstReply: [1],
@@ -368,7 +368,7 @@ test('it sends stu one message under a new key when the notify session changed a
   const ctx = await setupTest();
 
   const atc = await ctx.startAtc({
-    major: 7,
+    major: 8,
     unknownLost: [],
     unknownStored: [],
     dropFirstReply: [0],

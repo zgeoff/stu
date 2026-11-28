@@ -15,8 +15,8 @@
       "libs/*"
     ],
     "catalog": {
-      "@atcx/client": "7.21.1",
-      "@atcx/contract": "7.21.1",
+      "@atcx/client": "8.0.0",
+      "@atcx/contract": "8.0.0",
       "@commitlint/cli": "21.2.4",
       "@orpc/client": "1.16.1",
       "@orpc/contract": "1.16.1",

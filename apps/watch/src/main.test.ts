@@ -27,7 +27,7 @@ async function setupTest() {
     stateFolder,
     startAtc: async (socketFolder: string) => {
       const atc = await startStubAtc(socketFolder, {
-        major: 7,
+        major: 8,
         unknownLost: [],
         unknownStored: [],
         dropFirstReply: [],
@@ -95,7 +95,7 @@ test('it sends stu one message as stu-watch for a tcp check at a closed port', a
   });
 
   expect(atc.hellos).toStrictEqual([
-    { client: 'stu-watch/0.1.0', protocol: 15, major: 7, auth: { scheme: 'none' } },
+    { client: 'stu-watch/0.1.0', protocol: 15, major: 8, auth: { scheme: 'none' } },
   ]);
 
   expect(atc.stored).toStrictEqual([
