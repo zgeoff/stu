@@ -49,7 +49,6 @@ export const ignoredPaths = [
   '.claude/**',
   '.codex/**',
   '.github/**',
-  '.lefthook/**',
   'scripts/**',
   '{apps,modules,adapters,libs}/.gitkeep',
 
@@ -64,6 +63,7 @@ export const ignoredPaths = [
   'adapters/alerts-prometheus/**',
   'adapters/host-linux/**',
   'adapters/quota-anthropic/**',
+  'adapters/secrets-op/**',
   'adapters/sessions-atc/**',
   'apps/watch/systemd/**',
   'apps/watch/stu-watch.config.example.json',

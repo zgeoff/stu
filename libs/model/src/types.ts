@@ -58,8 +58,13 @@ export interface HostPort {
   readonly readDiskUsage: (paths: readonly string[]) => Promise<string>;
 }
 
-// The procedures of atc's published contract, as a client calls them, without the event streams.
-export type AtcProcedures = Omit<ContractRouterClient<typeof DAEMON_CONTRACT>, 'events'>;
+// The procedures of atc's published contract, as a client calls them, without the event stream:
+// of `events`, only the paged `read` is a plain call.
+type ContractProcedures = ContractRouterClient<typeof DAEMON_CONTRACT>;
+
+export type AtcProcedures = Omit<ContractProcedures, 'events'> & {
+  readonly events: Pick<ContractProcedures['events'], 'read'>;
+};
 
 // The atc procedures that read and change nothing.
 export interface AtcReadProcedures {

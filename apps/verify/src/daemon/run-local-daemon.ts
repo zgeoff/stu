@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { SPAWN_ANSWER_SCHEMA } from '@atcx/contract';
 import { resolveAtcPaths } from '@atcx/contract/light';
-import type { AtcSocketClient } from '@stu/notifier-atc';
+import type { AtcClient } from '@stu/notifier-atc';
 import type { Subprocess } from 'bun';
 import { openRunAtc } from '../run/open-run-atc.ts';
 import { parseAtcBody } from '../run/parse-atc-body.ts';
@@ -104,7 +104,7 @@ async function startDaemon(root: string, daemonEnv: DaemonEnv): Promise<Subproce
   }
 }
 
-async function waitForDaemon(atc: AtcSocketClient, daemon: Subprocess) {
+async function waitForDaemon(atc: AtcClient, daemon: Subprocess) {
   const deadlineMs = performance.now() + DAEMON_READY_TIMEOUT_MS;
 
   while (performance.now() < deadlineMs) {
@@ -124,7 +124,7 @@ async function waitForDaemon(atc: AtcSocketClient, daemon: Subprocess) {
   throw new Error(`atc daemon gave no answer in ${String(DAEMON_READY_TIMEOUT_MS)} ms`);
 }
 
-async function createInboxSession(atc: AtcSocketClient, root: string): Promise<string> {
+async function createInboxSession(atc: AtcClient, root: string): Promise<string> {
   const answer = await atc.write((procedures) =>
     procedures.session.spawn({ cwd: root, name: 'stu-inbox', agent: 'claude' }),
   );
